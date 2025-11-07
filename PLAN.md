@@ -168,3 +168,26 @@
 - `schemas/flow.schema.json` で actors/phases/tasks/flows/issues を含む JSON Schema 草案を定義。
 - `samples/input|expected/` に小・中・大の匿名化サンプル3件を配置し、Phase0 の要件を満たした。
 - `src/layer1/generator.py` で LLM/ダミークライアント対応の JSON 生成 CLI を実装し、`output/flow.json` へ出力できることを確認。
+
+---
+
+## 14. 直近タスク計画（検証済み）
+今後の優先度と依存関係を踏まえ、以下の順番で PDCA を回す。
+
+1. **環境整備（PDCA①）**  
+   - *Plan*: `.venv` を作成し、`jsonschema` と `openai` を `requirements.txt` に記載した上で pip install する。`.env` の API キーを環境変数として読み込めるようスクリプトを調整。  
+   - *Do*: 仮想環境で `python -m src.layer1.generator` を Stub/本番 API それぞれで実行。  
+   - *Check*: Schema バリデーションと API キー参照が成功するか、`output/flow.json` がサンプルどおりか確認。  
+   - *Action*: 問題があれば requirements/ドキュメントを更新し、成功時は環境手順を `README` 系に追記。
+
+2. **Layer1 自動テスト拡充（PDCA②）**  
+   - *Plan*: pytest でサンプル入力→期待 JSON を比較するユニットテストを設計し、CI 実行を想定。  
+   - *Do*: `tests/test_layer1_generator.py` を追加し、スタブ JSON を用いたテストを実装。  
+   - *Check*: `pytest` がローカルで成功するか、失敗時のログで欠落データを把握。  
+   - *Action*: テストデータやスキーマを更新し、合格時はコミット＆PLAN 更新。
+
+3. **Layer2/BPMN パイプライン実装（PDCA③）**  
+   - *Plan*: JSON→BPMN 変換モジュール、bpmnlint 連携、SVG/PNG エクスポート手順を定義。  
+   - *Do*: `src/layer2` と `src/export` に実処理を実装し、`samples/expected/` に BPMN/画像出力例を追加。  
+   - *Check*: bpmn-js での描画確認、bpmnlint 合否、画像品質を検証。  
+   - *Action*: 問題点を `issues` や ADR に記録し、フェーズ完了条件を満たしたら Phase2 へ進む。

@@ -1,0 +1,43 @@
+{
+  "metadata": {
+    "id": "sample-large-01",
+    "title": "グローバル IT 変更管理",
+    "source": "samples/input/sample-large-01.md",
+    "last_updated": "2025-11-07"
+  },
+  "actors": [
+    {"id": "regional_na", "name": "北米運用チーム", "type": "human"},
+    {"id": "regional_emea", "name": "EMEA運用チーム", "type": "human"},
+    {"id": "regional_apac", "name": "APAC運用チーム", "type": "human"},
+    {"id": "cab_board", "name": "CAB", "type": "group"}
+  ],
+  "phases": [
+    {"id": "intake", "name": "RFC 受付"},
+    {"id": "analysis", "name": "リスク評価"},
+    {"id": "approval", "name": "CAB レビュー"},
+    {"id": "deploy", "name": "実行と事後確認"}
+  ],
+  "tasks": [
+    {"id": "t1_rfc_submit", "name": "変更リクエスト登録", "actor_id": "regional_na", "phase_id": "intake", "handoff_to": ["regional_emea"], "systems": ["ServiceNow"], "notes": ""},
+    {"id": "t2_region_review", "name": "地域代表レビュー", "actor_id": "regional_emea", "phase_id": "analysis", "handoff_to": ["regional_apac"], "systems": ["ServiceNow", "PagerDuty"], "notes": ""},
+    {"id": "t3_global_sync", "name": "CAB レビュー準備", "actor_id": "regional_apac", "phase_id": "approval", "handoff_to": ["cab_board"], "systems": ["Zoom", "Confluence"], "notes": ""},
+    {"id": "t4_execute", "name": "変更実行と結果記録", "actor_id": "cab_board", "phase_id": "deploy", "handoff_to": ["regional_na", "regional_emea", "regional_apac"], "systems": ["ServiceNow"], "notes": ""}
+  ],
+  "gateways": [
+    {"id": "g1_risk_level", "type": "exclusive", "name": "リスクレベル判定"},
+    {"id": "g2_emergency", "type": "exclusive", "name": "緊急変更か"}
+  ],
+  "flows": [
+    {"id": "f1", "from": "t1_rfc_submit", "to": "t2_region_review"},
+    {"id": "f2", "from": "t2_region_review", "to": "g1_risk_level"},
+    {"id": "f3", "from": "g1_risk_level", "to": "t3_global_sync", "condition": "高リスク"},
+    {"id": "f4", "from": "g1_risk_level", "to": "g2_emergency", "condition": "低〜中リスク"},
+    {"id": "f5", "from": "g2_emergency", "to": "t4_execute", "condition": "緊急"},
+    {"id": "f6", "from": "t3_global_sync", "to": "t4_execute"},
+    {"id": "f7", "from": "g2_emergency", "to": "t3_global_sync", "condition": "通常"}
+  ],
+  "issues": [
+    {"id": "iss_kpi_alignment", "note": "地域ごとに KPI が異なり、統一 KPI が未定義。"},
+    {"id": "iss_comm_channels", "note": "Teams / Slack による通知ルールが統一されていない。"}
+  ]
+}

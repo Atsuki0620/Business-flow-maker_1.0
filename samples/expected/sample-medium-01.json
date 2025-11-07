@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "id": "sample-medium-01",
+    "title": "新卒オンボーディング",
+    "source": "samples/input/sample-medium-01.md",
+    "last_updated": "2025-11-07"
+  },
+  "actors": [
+    {"id": "hrbp", "name": "HRBP", "type": "human"},
+    {"id": "it_ops", "name": "情シス", "type": "human"},
+    {"id": "mentor", "name": "部門メンター", "type": "human"},
+    {"id": "new_hire", "name": "新入社員", "type": "human"}
+  ],
+  "phases": [
+    {"id": "preboarding", "name": "入社前準備"},
+    {"id": "week1", "name": "初週サポート"},
+    {"id": "follow_30", "name": "30日フォロー"}
+  ],
+  "tasks": [
+    {"id": "t1_collect_docs", "name": "必要書類収集", "actor_id": "hrbp", "phase_id": "preboarding", "handoff_to": ["it_ops"], "systems": ["Workday"], "notes": ""},
+    {"id": "t2_account", "name": "アカウント発行", "actor_id": "it_ops", "phase_id": "preboarding", "handoff_to": ["mentor"], "systems": ["Azure AD", "Jira Service Management"], "notes": ""},
+    {"id": "t3_orientation", "name": "オリエンテーション", "actor_id": "mentor", "phase_id": "week1", "handoff_to": ["new_hire"], "systems": ["Teams"], "notes": ""},
+    {"id": "t4_followup", "name": "30日面談", "actor_id": "mentor", "phase_id": "follow_30", "handoff_to": ["hrbp"], "systems": ["Teams"], "notes": ""}
+  ],
+  "gateways": [
+    {"id": "g1_device_ready", "type": "exclusive", "name": "備品準備済みか"}
+  ],
+  "flows": [
+    {"id": "f1", "from": "t1_collect_docs", "to": "t2_account"},
+    {"id": "f2", "from": "t2_account", "to": "g1_device_ready"},
+    {"id": "f3", "from": "g1_device_ready", "to": "t3_orientation", "condition": "準備済み"},
+    {"id": "f4", "from": "g1_device_ready", "to": "t2_account", "condition": "不足あり"},
+    {"id": "f5", "from": "t3_orientation", "to": "t4_followup"}
+  ],
+  "issues": [
+    {"id": "iss_device_gap", "note": "備品不足時の再手配 SLA が未定義。"},
+    {"id": "iss_department_tasks", "note": "部門固有タスクの差分反映ルールが未整備。"}
+  ]
+}

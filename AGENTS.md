@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## はじめに
-本リポジトリは業務フローをLLMで整形し、HTML・BPMN・画像まで落とし込む計画をまとめています。常に最新の `PLAN.md` を参照し、ドキュメント化されていない判断は必ず追記してください。日本語で簡潔かつ丁寧に回答してくださいい。
+本リポジトリは業務フローをLLMで整形し、HTML・BPMN・画像まで落とし込む計画をまとめています。常に最新の `PLAN.md` を参照し、ドキュメント化されていない判断は必ず追記してください。日本語で簡潔かつ丁寧に回答してください。
 
 ## プロジェクト構成と配置
 - `PLAN.md`: 開発計画の単一ソース。更新ごとに版情報を先頭へ追記。
@@ -18,7 +18,7 @@
 - `npm run lint` または `bpmnlint output/flow.bpmn`: BPMNルール逸脱を検出。
 
 ## コーディング規約と命名
-PythonはPEP8・4スペースインデント、TypeScript/JSはESLint標準＋Prettier 2スペースを採用。モジュール名は `flow_*`, 関数は `verb_object`、クラスはPascalCase。JSONキーはスネークケースを固定し、欠落情報は `issues[].note` に明示します。
+PythonはPEP8・4スペースインデント、TypeScript/JSはESLint標準＋Prettier 2スペースを採用。モジュール名は `flow_*`, 関数は `verb_object`、クラスはPascalCase。JSONキーはスネークケースを固定し、欠落情報は `issues[].note` に明示します。関数やクラスのdocstringはすべて日本語で記載し、入力・出力・例外などの補足情報も日本語で整理してください。
 
 ## テスト指針
 pytestで各レイヤーのユニットテストを配置し、サンプル3サイズ（小・中・大）をフィクスチャ化。BPMN出力は `bpmnlint` とHTMLプレビューのスクリーンショットを残し、重大欠陥はIssue化。回帰防止のため、再現素材と期待出力を `samples/expected/` に保存します。

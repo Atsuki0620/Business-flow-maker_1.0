@@ -14,7 +14,7 @@
   - 確定成果物：BPMN 2.0 XML（.bpmn）と bpmn-js プレビュー、SVG/PNG 画像。PPTX は当面手動貼り付け。
   - Excel：Actors/Tasks/Flows/RACI/Issues を表形式で出力。
 - **利用想定**：個人利用が主。小規模〜部署横断まで対応できる柔軟性を確保。
-- **技術方針**：LLM は OpenAI API / Azure OpenAI API を利用。API キーは `.env`（git 未管理）に格納し、実装からは環境変数経由で参照する。CLI/スクリプト中心で、必要に応じて Streamlit 等を検討。
+- **技術方針**：LLM は OpenAI API / Azure OpenAI API を利用。API キーやエンドポイント、利用プロバイダ種別（例：`LLM_PROVIDER=openai|azure`）は `.env`（git 未管理）に格納し、実装からは環境変数経由で参照する。起動時にユーザーへプロバイダ選択を促し、選択結果に応じて OpenAI/Azure それぞれのクライアント設定を切り替える。CLI/スクリプト中心で、必要に応じて Streamlit 等を検討。
 - **正規化フロー**：正規化＆クリーニング工程は MVP では省略。要望が高まった段階でオプション機能として追加。
 
 ---

@@ -1,145 +1,171 @@
 {
   "actors": [
     {
-      "id": "req_sales",
-      "name": "営業・コンサル",
+      "id": "infra_team_na",
+      "name": "Infrastructure Operations Team - North America",
       "type": "human"
     },
     {
-      "id": "proc_ops",
-      "name": "購買担当",
+      "id": "infra_team_emea",
+      "name": "Infrastructure Operations Team - EMEA",
       "type": "human"
     },
     {
-      "id": "fin_ctrl",
-      "name": "経理／役員決裁",
+      "id": "infra_team_apac",
+      "name": "Infrastructure Operations Team - APAC",
+      "type": "human"
+    },
+    {
+      "id": "cab",
+      "name": "Change Advisory Board",
+      "type": "human"
+    },
+    {
+      "id": "service_now",
+      "name": "ServiceNow System",
+      "type": "system"
+    },
+    {
+      "id": "pager_duty",
+      "name": "PagerDuty System",
+      "type": "system"
+    },
+    {
+      "id": "zoom",
+      "name": "Zoom",
+      "type": "human"
+    },
+    {
+      "id": "confluence",
+      "name": "Confluence",
       "type": "human"
     }
   ],
   "phases": [
     {
-      "id": "capture",
-      "name": "申請受付"
+      "id": "request_submission",
+      "name": "Change Request Submission"
     },
     {
-      "id": "review",
-      "name": "内容確認"
+      "id": "regional_approval",
+      "name": "Regional Approval"
     },
     {
-      "id": "approval",
-      "name": "承認"
+      "id": "cab_review",
+      "name": "CAB Review"
     },
     {
-      "id": "order",
-      "name": "発注・記録"
+      "id": "implementation",
+      "name": "Implementation"
+    },
+    {
+      "id": "closure",
+      "name": "Closure"
     }
   ],
   "tasks": [
     {
-      "id": "t1_intake",
-      "name": "申請フォーム受領",
-      "actor_id": "proc_ops",
-      "phase_id": "capture",
+      "id": "submit_rfc",
+      "name": "Submit Change Request",
+      "actor_id": "infra_team_na",
+      "phase_id": "request_submission",
       "handoff_to": [
-        "proc_ops"
-      ],
-      "systems": [
-        "Teams",
-        "SharePoint"
-      ],
-      "notes": "テンプレート統一前の手入力調整が必要"
+        "infra_team_emea"
+      ]
     },
     {
-      "id": "t2_validate",
-      "name": "入力内容の正規化",
-      "actor_id": "proc_ops",
-      "phase_id": "review",
+      "id": "regional_approval_na",
+      "name": "Regional Approval - North America",
+      "actor_id": "infra_team_na",
+      "phase_id": "regional_approval",
       "handoff_to": [
-        "proc_ops"
-      ],
-      "systems": [
-        "SharePoint"
-      ],
-      "notes": "30万円超は経理連携"
+        "infra_team_emea"
+      ]
     },
     {
-      "id": "t3_dual_approval",
-      "name": "二段階承認",
-      "actor_id": "proc_ops",
-      "phase_id": "approval",
+      "id": "regional_approval_emea",
+      "name": "Regional Approval - EMEA",
+      "actor_id": "infra_team_emea",
+      "phase_id": "regional_approval",
       "handoff_to": [
-        "fin_ctrl"
-      ],
-      "systems": [
-        "Teams"
-      ],
-      "notes": "役員決裁は Slack/紙フローの代替を検討"
+        "infra_team_apac"
+      ]
     },
     {
-      "id": "t4_po_issue",
-      "name": "発注・記録更新",
-      "actor_id": "proc_ops",
-      "phase_id": "order",
+      "id": "regional_approval_apac",
+      "name": "Regional Approval - APAC",
+      "actor_id": "infra_team_apac",
+      "phase_id": "regional_approval",
       "handoff_to": [
-        "req_sales"
-      ],
-      "systems": [
-        "勘定奉行"
-      ],
-      "notes": "完了時に申請者へ通知"
+        "cab"
+      ]
+    },
+    {
+      "id": "cab_review_task",
+      "name": "CAB Review for Major Changes",
+      "actor_id": "cab",
+      "phase_id": "cab_review",
+      "handoff_to": [
+        "infra_team_na"
+      ]
+    },
+    {
+      "id": "implement_change",
+      "name": "Implementation of Approved Change",
+      "actor_id": "infra_team_na",
+      "phase_id": "implementation",
+      "handoff_to": [
+        "infra_team_na"
+      ]
+    },
+    {
+      "id": "close_change",
+      "name": "Change Closure and Documentation",
+      "actor_id": "infra_team_na",
+      "phase_id": "closure",
+      "handoff_to": [
+        "UNKNOWN"
+      ]
     }
   ],
   "flows": [
     {
-      "id": "f1",
-      "from": "t1_intake",
-      "to": "t2_validate"
-    },
-    {
-      "id": "f2",
-      "from": "t2_validate",
-      "to": "g1_amount_check"
-    },
-    {
-      "id": "f3",
-      "from": "g1_amount_check",
-      "to": "t3_dual_approval",
-      "condition": ">=300k"
-    },
-    {
-      "id": "f4",
-      "from": "g1_amount_check",
-      "to": "t4_po_issue",
-      "condition": "<300k"
-    },
-    {
-      "id": "f5",
-      "from": "t3_dual_approval",
-      "to": "t4_po_issue"
+      "id": "flow_1",
+      "from": "submit_rfc",
+      "to": "close_change"
     }
   ],
   "issues": [
     {
-      "id": "iss_missing_template",
-      "note": "フォーム項目が統一されておらず、正規化ルールを別途定義する必要あり。"
+      "id": "issue_1",
+      "note": "CAB meeting minutes input delay causes outdated records"
     },
     {
-      "id": "iss_paper_flow",
-      "note": "緊急紙フローの置き換え手順が未定。"
+      "id": "issue_2",
+      "note": "Mixed notification channels (Teams/Slack) reduce communication efficiency"
+    },
+    {
+      "id": "issue_3",
+      "note": "UNKNOWN"
     }
   ],
   "gateways": [
     {
-      "id": "g1_amount_check",
-      "name": "30万円超か？",
+      "id": "risk_assessment_gate",
+      "name": "Risk Level Assessment",
+      "type": "exclusive"
+    },
+    {
+      "id": "cab_decision_gate",
+      "name": "CAB Approval Gate",
       "type": "exclusive"
     }
   ],
   "metadata": {
-    "id": "sample-small-01",
-    "title": "購買申請の即日承認",
-    "source": "samples/input/sample-small-01.md",
-    "last_updated": "2025-11-07",
+    "id": "global_it_change_management",
+    "title": "Global IT Change Management",
+    "source": "ユーザ提供サンプル",
+    "last_updated": "2024-04-27",
     "generation": {
       "model": "gpt-4.1-mini",
       "provider": "openai"

@@ -458,6 +458,18 @@ def normalize_flow_document(raw: dict) -> dict:
     data["issues"] = issues
 
     metadata = data.get("metadata", {})
+    if not isinstance(metadata, dict):
+        metadata = {}
+
+    # LLM出力でトップレベルに混在したメタ情報を拾い上げる
+    legacy_keys = ("id", "title", "source", "last_updated")
+    for key in legacy_keys:
+        value = data.pop(key, None)
+        if value and key not in metadata:
+            metadata[key] = value
+
+    generation_info = metadata.get("generation") if isinstance(metadata.get("generation"), dict) else None
+
     today = date.today().isoformat()
     data["metadata"] = {
         "id": metadata.get("id", "sample-flow"),
@@ -465,6 +477,8 @@ def normalize_flow_document(raw: dict) -> dict:
         "source": metadata.get("source", "samples/input/sample-small-01.md"),
         "last_updated": metadata.get("last_updated", today),
     }
+    if generation_info:
+        data["metadata"]["generation"] = generation_info
 
     return data
 

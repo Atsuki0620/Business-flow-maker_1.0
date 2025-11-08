@@ -2,7 +2,7 @@
 
 - [OK] actors/phases/tasks/flows/issues をすべて保持している
 - [OK] issues に曖昧点や未決事項が列挙されている
-- [OK] gateway を含む場合は flows で参照漏れがない
+- [NG] gateway を含む場合は flows で参照漏れがない
 - [OK] tasks の handoff_to が必ず存在する
 
 自動判定は参考値です。PLAN §8 の全文を確認し、人手で補完してください。

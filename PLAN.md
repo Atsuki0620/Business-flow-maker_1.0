@@ -1,6 +1,7 @@
 ﻿# Business-flow-maker 開発計画書
 
 ## 改訂履歴
+- 2025-11-08 v0.32（LLM プロバイダ自動検出と generation メタデータ追記、.env.example 追加）
 - 2025-11-08 v0.31（Layer1可視化Hotfix）HTML/SVG/レビュー出力をUTF-8(BOM付)化しSwimlane配置を補正
 - 2025-11-08 v0.3（タスク1着手）requirements.txt追加と環境セットアップ手順を追記
 - 2025-11-07 v0.2（UTF-8 正常化・ディレクトリ雛形・サンプル3件・JSON Schema 草案・Layer1 ジェネレーター雛形を追加）
@@ -88,6 +89,7 @@
 - OpenAI API 利用時は LLM_PROVIDER=openai と OPENAI_API_KEY のみを記述し、HTTP_PROXY / HTTPS_PROXY は空のままにする。切替コマンド例: Copy-Item .env.openai .env。
 - Azure OpenAI 利用時は LLM_PROVIDER=azure / API_KEY / API_VERSION / AZURE_ENDPOINT に加え、必要に応じて HTTP_PROXY / HTTPS_PROXY を .env.azure に記述し、Copy-Item .env.azure .env で展開する。
 - .env は Git 管理外だが、どの設定で成果物を生成したかを PLAN 改訂履歴・PR 説明・output/README.md に記録してトレーサビリティを確保する。
+- .env.example を最新テンプレートとして維持し、OpenAI/Azure それぞれの必須変数と注意事項をコメントで明記する。
 
 **Phase 4：任意拡張**
 - 正規化＆クリーニング機能、表記ゆれ辞書、ID 採番の強化。

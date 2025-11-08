@@ -1,6 +1,7 @@
 # Business-flow-maker 開発計画書
 
 ## 改訂履歴
+- 2025-11-08 v0.3（タスク1着手）requirements.txt追加と環境セットアップ手順を追記
 - 2025-11-07 v0.2（UTF-8 正常化・ディレクトリ雛形・サンプル3件・JSON Schema 草案・Layer1 ジェネレーター雛形を追加）
 - 2025-11-07 v0.1（初稿）
 
@@ -84,6 +85,15 @@
 - 正規化＆クリーニング機能、表記ゆれ辞書、ID 採番の強化。
 - PPTX 自動化とテンプレレイアウト。
 - UI 導入（ブラウザ or デスクトップ）と RAG 連携の検討。
+### 4.1 開発環境セットアップ（2025-11-08 更新）
+- **仮想環境**：python -m venv .venv で環境を作成し、Windows では .\.venv\Scripts\activate で有効化する。再利用時も同じシェルでコマンドを実行する。
+- **依存導入**：pip install -r requirements.txt を実行すると openai>=1.44.0・jsonschema>=4.22.0・python-dotenv>=1.0.1 が揃い、Layer1 スクリプト／テストの前提が整う。
+- **環境変数**：.env に LLM_PROVIDER=openai|azure、OPENAI_API_KEY=sk-***（Azure 利用時は AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com と AZURE_OPENAI_API_KEY= も追記）を保存する。python-dotenv が src/layer1/generator.py 読み込み時に自動でロードし、OpenAI/Azure SDK が参照する。
+- **実行コマンド**：
+  - スタブ検証：python -m src.layer1.generator --input samples/input/sample-small-01.md --stub samples/expected/sample-small-01.json --output output/flow.json
+  - 本番 API：python -m src.layer1.generator --input <input.md> --model gpt-4.1-mini（Azure モデル利用時は .env の LLM_PROVIDER とエンドポイントで切り替える）
+- **確認ポイント**：output/flow.json が更新され JSON Schema 検証が成功すること、API キー未設定時は SDK がエラーを返し問題箇所を特定できることをログへ残す。
+
 
 ---
 
@@ -178,14 +188,13 @@
    - *Plan*: `.venv` を作成し、`jsonschema` と `openai` を `requirements.txt` に記載した上で pip install する。`.env` の API キーを環境変数として読み込めるようスクリプトを調整。  
    - *Do*: 仮想環境で `python -m src.layer1.generator` を Stub/本番 API それぞれで実行。  
    - *Check*: Schema バリデーションと API キー参照が成功するか、`output/flow.json` がサンプルどおりか確認。  
-   - *Action*: 問題があれば requirements/ドキュメントを更新し、成功時は環境手順を `README` 系に追記。
+   - *Action*: 2025-11-08時点で requirements/PLAN/src-layer1 を更新済み。残タスクは README 反映と CI 手順整備。
 
 2. **Layer1 自動テスト拡充（PDCA②）**  
    - *Plan*: pytest でサンプル入力→期待 JSON を比較するユニットテストを設計し、CI 実行を想定。  
    - *Do*: `tests/test_layer1_generator.py` を追加し、スタブ JSON を用いたテストを実装。  
    - *Check*: `pytest` がローカルで成功するか、失敗時のログで欠落データを把握。  
-   - *Action*: テストデータやスキーマを更新し、合格時はコミット＆PLAN 更新。
-
+   - *Action*: 2025-11-08に tests/conftest.py と tests/test_layer1_generator.py を追加し pytest 3ケースが通過。CI 追加と LLM 実行パスのモック化を継続。
 3. **Layer2/BPMN パイプライン実装（PDCA③）**  
    - *Plan*: JSON→BPMN 変換モジュール、bpmnlint 連携、SVG/PNG エクスポート手順を定義。  
    - *Do*: `src/layer2` と `src/export` に実処理を実装し、`samples/expected/` に BPMN/画像出力例を追加。  

@@ -17,6 +17,14 @@ from dataclasses import asdict, dataclass
 from typing import Any, Dict, List, Optional, Protocol
 
 try:
+    from dotenv import load_dotenv  # type: ignore
+except ImportError:  # pragma: no cover - optional dependency
+    def load_dotenv() -> None:  # type: ignore
+        return None
+
+load_dotenv()
+
+try:
     from openai import OpenAI  # type: ignore
 except ImportError:  # pragma: no cover - optional dependency
     OpenAI = None  # type: ignore

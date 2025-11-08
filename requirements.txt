@@ -1,0 +1,5 @@
+﻿openai>=1.44.0
+jsonschema>=4.22.0
+python-dotenv>=1.0.1
+pytest>=8.3.0
+

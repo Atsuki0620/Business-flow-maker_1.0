@@ -16,6 +16,14 @@
         "last_updated": {
           "type": "string",
           "format": "date"
+        },
+        "generation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "model": {"type": "string"},
+            "provider": {"type": "string", "enum": ["openai", "azure"]}
+          }
         }
       }
     },

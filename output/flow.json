@@ -1,104 +1,148 @@
 {
   "actors": [
     {
-      "id": "applicant_1",
-      "name": "営業・コンサル申請者",
+      "id": "req_sales",
+      "name": "営業・コンサル",
       "type": "human"
     },
     {
-      "id": "back_office_1",
-      "name": "購買担当者",
+      "id": "proc_ops",
+      "name": "購買担当",
       "type": "human"
     },
     {
-      "id": "executive_1",
-      "name": "役員",
+      "id": "fin_ctrl",
+      "name": "経理／役員決裁",
       "type": "human"
     }
   ],
   "phases": [
     {
-      "id": "phase_1",
-      "name": "申請受付",
-      "description": "申請者からの購買依頼受領、入力内容の正規化と担当者割当まで"
+      "id": "capture",
+      "name": "申請受付"
     },
     {
-      "id": "phase_2",
-      "name": "承認",
-      "description": "2段階の承認プロセス"
+      "id": "review",
+      "name": "内容確認"
+    },
+    {
+      "id": "approval",
+      "name": "承認"
+    },
+    {
+      "id": "order",
+      "name": "発注・記録"
     }
   ],
   "tasks": [
     {
-      "id": "task_receive_application",
-      "name": "申請受領",
-      "actor_id": "back_office_1",
-      "phase_id": "phase_1",
+      "id": "t1_intake",
+      "name": "申請フォーム受領",
+      "actor_id": "proc_ops",
+      "phase_id": "capture",
       "handoff_to": [
-        "procurement_officer_assistant"
-      ]
+        "proc_ops"
+      ],
+      "systems": [
+        "Teams",
+        "SharePoint"
+      ],
+      "notes": "テンプレート統一前の手入力調整が必要"
     },
     {
-      "id": "task_normalize_application",
-      "name": "申請内容正規化",
-      "actor_id": "back_office_1",
-      "phase_id": "phase_1",
+      "id": "t2_validate",
+      "name": "入力内容の正規化",
+      "actor_id": "proc_ops",
+      "phase_id": "review",
       "handoff_to": [
-        "procurement_officer_1"
-      ]
+        "proc_ops"
+      ],
+      "systems": [
+        "SharePoint"
+      ],
+      "notes": "30万円超は経理連携"
     },
     {
-      "id": "task_first_approval",
-      "name": "一次承認",
-      "actor_id": "procurement_officer_1",
-      "phase_id": "phase_2",
+      "id": "t3_dual_approval",
+      "name": "二段階承認",
+      "actor_id": "proc_ops",
+      "phase_id": "approval",
       "handoff_to": [
-        "procurement_officer_2"
-      ]
+        "fin_ctrl"
+      ],
+      "systems": [
+        "Teams"
+      ],
+      "notes": "役員決裁は Slack/紙フローの代替を検討"
     },
     {
-      "id": "task_second_approval",
-      "name": "二次承認",
-      "actor_id": "procurement_officer_2",
-      "phase_id": "phase_2",
+      "id": "t4_po_issue",
+      "name": "発注・記録更新",
+      "actor_id": "proc_ops",
+      "phase_id": "order",
       "handoff_to": [
-        "executive_1"
-      ]
-    },
-    {
-      "id": "task_executive_approval",
-      "name": "役員承認",
-      "actor_id": "executive_1",
-      "phase_id": "phase_2",
-      "handoff_to": []
+        "req_sales"
+      ],
+      "systems": [
+        "勘定奉行"
+      ],
+      "notes": "完了時に申請者へ通知"
     }
   ],
   "flows": [
     {
-      "id": "flow_1",
-      "from": "task_receive_application",
-      "to": "task_executive_approval"
+      "id": "f1",
+      "from": "t1_intake",
+      "to": "t2_validate"
+    },
+    {
+      "id": "f2",
+      "from": "t2_validate",
+      "to": "g1_amount_check"
+    },
+    {
+      "id": "f3",
+      "from": "g1_amount_check",
+      "to": "t3_dual_approval",
+      "condition": ">=300k"
+    },
+    {
+      "id": "f4",
+      "from": "g1_amount_check",
+      "to": "t4_po_issue",
+      "condition": "<300k"
+    },
+    {
+      "id": "f5",
+      "from": "t3_dual_approval",
+      "to": "t4_po_issue"
     }
   ],
   "issues": [
     {
-      "id": "issue_missing_fields",
-      "note": "UNKNOWN: 申請テンプレートの入力抜け漏れが多発"
+      "id": "iss_missing_template",
+      "note": "フォーム項目が統一されておらず、正規化ルールを別途定義する必要あり。"
     },
     {
-      "id": "issue_unexpected_template",
-      "note": "UNKNOWN: 案件ごとに乱立する申請テンプレート"
-    },
-    {
-      "id": "issue_paper_approval_delay",
-      "note": "UNKNOWN: 紙の押印フローによる承認待ちで1日以上滞留"
+      "id": "iss_paper_flow",
+      "note": "緊急紙フローの置き換え手順が未定。"
     }
   ],
-  "gateways": [],
+  "gateways": [
+    {
+      "id": "g1_amount_check",
+      "name": "30万円超か？",
+      "type": "exclusive"
+    }
+  ],
   "metadata": {
-    "id": "purchase_request_immediate_approval_small",
-    "title": "購買申請の即日承認（小規模サンプル）",
-    "source": "ユーザ提供サンプル",
-    "last_updated": "2024-06-01"
+    "id": "sample-small-01",
+    "title": "購買申請の即日承認",
+    "source": "samples/input/sample-small-01.md",
+    "last_updated": "2025-11-07",
+    "generation": {
+      "model": "gpt-4.1-mini",
+      "provider": "openai"
+    }
   }
 }

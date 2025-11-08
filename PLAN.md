@@ -1,6 +1,8 @@
-# Business-flow-maker 開発計画書
+﻿# Business-flow-maker 開発計画書
 
 ## 改訂履歴
+- 2025-11-08 v0.31（Layer1可視化Hotfix）HTML/SVG/レビュー出力をUTF-8(BOM付)化しSwimlane配置を補正
+- 2025-11-08 v0.3（タスク1着手）requirements.txt追加と環境セットアップ手順を追記
 - 2025-11-07 v0.2（UTF-8 正常化・ディレクトリ雛形・サンプル3件・JSON Schema 草案・Layer1 ジェネレーター雛形を追加）
 - 2025-11-07 v0.1（初稿）
 
@@ -52,6 +54,7 @@
 ### 3.1 機能要件
 1. **独自JSON生成**：actors, phases, tasks（責任/RACI/handoff_to/systems/notes を含む）、gateways、flows、issues を出力し、曖昧な点は `issues` に列挙する。
 2. **ブラウザ可視化（レイヤー1）**：JSON を読み込み、泳走レーン／縦積みレイアウトで SVG 化し、未参照IDや孤立ノードも検知する。
+   - Windowsローカル確認を優先し、HTML/SVG/レビューはUTF-8(BOM付)で書き出す。Swimlane内タスク/ゲートウェイはレーン中央に整列させ図の崩れを抑制（2025-11-08 Hotfix）。
 3. **BPMN変換（レイヤー2）**：laneSet、task、exclusiveGateway、sequenceFlow を生成し、bpmn-js＋bpmnlint で検証する。
 4. **エクスポート**：SVG/PNG を高解像度で出力し、PPT 貼付に耐える品質を確保する。
 5. **レビュー出力**：本書 §8 のチェックリストと Lint 結果をテキストで出力する。
@@ -80,10 +83,25 @@
 - レイアウト調整（レーン再配置／ラベル折返し）。
 - Lint ルールのチューニング（未接続フロー、重複タスク名など）。
 - 運用チェックリストと出力確認プロセスを整備。
+### 4.x .env 運用ポリシー
+- .env は実行直前に対象プロバイダのテンプレート（例: .env.openai / .env.azure）をコピーして生成し、作業後は削除する。設定を混在させない。
+- OpenAI API 利用時は LLM_PROVIDER=openai と OPENAI_API_KEY のみを記述し、HTTP_PROXY / HTTPS_PROXY は空のままにする。切替コマンド例: Copy-Item .env.openai .env。
+- Azure OpenAI 利用時は LLM_PROVIDER=azure / API_KEY / API_VERSION / AZURE_ENDPOINT に加え、必要に応じて HTTP_PROXY / HTTPS_PROXY を .env.azure に記述し、Copy-Item .env.azure .env で展開する。
+- .env は Git 管理外だが、どの設定で成果物を生成したかを PLAN 改訂履歴・PR 説明・output/README.md に記録してトレーサビリティを確保する。
+
 **Phase 4：任意拡張**
 - 正規化＆クリーニング機能、表記ゆれ辞書、ID 採番の強化。
 - PPTX 自動化とテンプレレイアウト。
 - UI 導入（ブラウザ or デスクトップ）と RAG 連携の検討。
+### 4.1 開発環境セットアップ（2025-11-08 更新）
+- **仮想環境**：python -m venv .venv で環境を作成し、Windows では .\.venv\Scripts\activate で有効化する。再利用時も同じシェルでコマンドを実行する。
+- **依存導入**：pip install -r requirements.txt を実行すると openai>=1.44.0・jsonschema>=4.22.0・python-dotenv>=1.0.1 が揃い、Layer1 スクリプト／テストの前提が整う。
+- **環境変数**：.env に LLM_PROVIDER=openai|azure、OPENAI_API_KEY=sk-***（Azure 利用時は AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com と AZURE_OPENAI_API_KEY= も追記）を保存する。python-dotenv が src/layer1/generator.py 読み込み時に自動でロードし、OpenAI/Azure SDK が参照する。
+- **実行コマンド**：
+  - スタブ検証：python -m src.layer1.generator --input samples/input/sample-small-01.md --stub samples/expected/sample-small-01.json --output output/flow.json
+  - 本番 API：python -m src.layer1.generator --input <input.md> --model gpt-4.1-mini（Azure モデル利用時は .env の LLM_PROVIDER とエンドポイントで切り替える）
+- **確認ポイント**：output/flow.json が更新され JSON Schema 検証が成功すること、API キー未設定時は SDK がエラーを返し問題箇所を特定できることをログへ残す。
+
 
 ---
 
@@ -178,14 +196,13 @@
    - *Plan*: `.venv` を作成し、`jsonschema` と `openai` を `requirements.txt` に記載した上で pip install する。`.env` の API キーを環境変数として読み込めるようスクリプトを調整。  
    - *Do*: 仮想環境で `python -m src.layer1.generator` を Stub/本番 API それぞれで実行。  
    - *Check*: Schema バリデーションと API キー参照が成功するか、`output/flow.json` がサンプルどおりか確認。  
-   - *Action*: 問題があれば requirements/ドキュメントを更新し、成功時は環境手順を `README` 系に追記。
+   - *Action*: 2025-11-08時点で requirements/PLAN/src-layer1 を更新済み。残タスクは README 反映と CI 手順整備。
 
 2. **Layer1 自動テスト拡充（PDCA②）**  
    - *Plan*: pytest でサンプル入力→期待 JSON を比較するユニットテストを設計し、CI 実行を想定。  
    - *Do*: `tests/test_layer1_generator.py` を追加し、スタブ JSON を用いたテストを実装。  
    - *Check*: `pytest` がローカルで成功するか、失敗時のログで欠落データを把握。  
-   - *Action*: テストデータやスキーマを更新し、合格時はコミット＆PLAN 更新。
-
+   - *Action*: 2025-11-08に tests/conftest.py と tests/test_layer1_generator.py を追加し pytest 3ケースが通過。CI 追加と LLM 実行パスのモック化を継続。
 3. **Layer2/BPMN パイプライン実装（PDCA③）**  
    - *Plan*: JSON→BPMN 変換モジュール、bpmnlint 連携、SVG/PNG エクスポート手順を定義。  
    - *Do*: `src/layer2` と `src/export` に実処理を実装し、`samples/expected/` に BPMN/画像出力例を追加。  

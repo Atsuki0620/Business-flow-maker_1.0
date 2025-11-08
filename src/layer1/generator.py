@@ -13,7 +13,9 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import re
 from dataclasses import asdict, dataclass
+from datetime import date
 from typing import Any, Dict, List, Optional, Protocol
 
 try:
@@ -67,16 +69,21 @@ class OpenAILLMClient:
         self._client = OpenAI()
 
     def structured_flow(self, *, prompt: str, schema: Dict[str, Any], model: str) -> Dict[str, Any]:
-        response = self._client.responses.create(
-            model=model,
-            input=prompt,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {"name": "FlowSchema", "schema": schema},
-            },
-        )
+        request_kwargs = {
+            "model": model,
+            "input": prompt,
+        }
+        try:
+            response = self._client.responses.create(
+                response_format={"type": "json_schema", "json_schema": {"name": "FlowSchema", "schema": schema}},
+                **request_kwargs,
+            )
+        except TypeError:
+            # Older openai SDKs (< 1.43) do not support response_format.
+            response = self._client.responses.create(**request_kwargs)
         content = response.output[0].content[0].text if response.output else "{}"
-        return json.loads(content)
+        payload = _extract_json_payload(content)
+        return json.loads(payload)
 
 
 class DummyLLMClient:
@@ -95,16 +102,185 @@ def load_schema(schema_path: pathlib.Path) -> Dict[str, Any]:
 
 
 def build_prompt(input_text: str) -> str:
-    return (
-        "あなたは業務フローアーキテクトです。以下の入力を読み、"
-        "actors / phases / tasks / flows / gateways / issues / metadata を含む JSON を生成してください。\n\n"
+    base = (
+        "���Ȃ��͋Ɩ��t���[�A�[�L�e�N�g�ł��B�ȉ��̓��͂�ǂ݁A"
+        "actors / phases / tasks / flows / gateways / issues / metadata ���܂� JSON �𐶐����Ă��������B\n"
         f"--- INPUT START ---\n{input_text}\n--- INPUT END ---\n\n"
-        "必須ルール:\n"
-        "1. JSON Schema に準拠し、snake_case キーを維持する。\n"
-        "2. 曖昧または不明な情報は issues[].note に記録し、UNKNOWN という語を含める。\n"
-        "3. flows[].condition は必要な場合のみ記載する。\n"
-        "4. tasks[].handoff_to は空配列でも必ず含める。\n"
+        "�K�{���[��:\n"
+        "1. JSON Schema �ɏ������Asnake_case �L�[���ێ�����B\n"
+        "2. �B���܂��͕s���ȏ��� issues[].note �ɋL�^���AUNKNOWN �Ƃ�������܂߂�B\n"
+        "3. flows[].condition �͕K�v�ȏꍇ�̂݋L�ڂ���B\n"
+        "4. tasks[].handoff_to �͋�z��ł��K���܂߂�B\n"
     )
+    extras = (
+        "5. actors[].id �ƃ^�X�N[].actor_id �͑S�ẴA�N�^�[ID���g�p����B\n"
+        "6. metadata �́Aid/title/source/last_updated�݂̂𗘗p����B\n"
+        "7. ���͂� ``` �������Ȃ��ł���������JSON���Ԃ��B\n"
+    )
+    return base + extras
+
+
+
+
+def _extract_json_payload(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        stripped = stripped[3:]
+        if stripped.startswith("json"):
+            stripped = stripped[4:]
+        end_idx = stripped.rfind("```")
+        if end_idx != -1:
+            stripped = stripped[:end_idx]
+    return stripped.strip()
+
+
+def _slugify_id(value: str, prefix: str, idx: int) -> str:
+    base = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+    if not base:
+        base = f"{prefix}_{idx}"
+    if not base.startswith(prefix):
+        base = f"{prefix}_{base}"
+    return base
+
+
+def _as_list(value):
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value else []
+    return [str(item) for item in value if item]
+
+
+def _pick_identifier(value):
+    if value is None:
+        return None
+    if isinstance(value, list):
+        for item in value:
+            if item:
+                return str(item)
+        return None
+    return str(value)
+
+
+def normalize_flow_document(raw: dict) -> dict:
+    data = dict(raw)
+
+    actors = []
+    actor_lookup = {}
+    for idx, actor in enumerate(data.get("actors", []), start=1):
+        name = actor.get("name") or actor.get("title") or actor.get("role") or f"actor_{idx}"
+        actor_id = actor.get("id") or _slugify_id(name, "actor", idx)
+        actor_type = actor.get("type") or ("system" if "system" in (actor.get("role", "").lower()) else "human")
+        filtered = {"id": actor_id, "name": name, "type": actor_type}
+        if "notes" in actor:
+            filtered["notes"] = actor["notes"]
+        actors.append(filtered)
+        actor_lookup[name] = actor_id
+        actor_lookup[actor_id] = actor_id
+    if not actors:
+        actors = [{"id": "actor_1", "name": "unspecified", "type": "human"}]
+        actor_lookup["unspecified"] = "actor_1"
+    data["actors"] = actors
+
+    phases = []
+    phase_lookup = {}
+    for idx, phase in enumerate(data.get("phases", []), start=1):
+        name = phase.get("name") or phase.get("title") or f"phase_{idx}"
+        phase_id = phase.get("id") or _slugify_id(name, "phase", idx)
+        filtered = {"id": phase_id, "name": name}
+        if "description" in phase:
+            filtered["description"] = phase["description"]
+        phases.append(filtered)
+        phase_lookup[name] = phase_id
+        phase_lookup[phase_id] = phase_id
+    if not phases:
+        phases = [{"id": "phase_1", "name": "unknown"}]
+        phase_lookup["unknown"] = "phase_1"
+    data["phases"] = phases
+
+    tasks = []
+    for idx, task in enumerate(data.get("tasks", []), start=1):
+        name = task.get("name") or task.get("title") or f"task_{idx}"
+        task_id = task.get("id") or _slugify_id(name, "task", idx)
+        phase_key = _pick_identifier(task.get("phase_id") or task.get("phase"))
+        phase_id = phase_lookup.get(phase_key)
+        if not phase_id:
+            phase_id = phases[0]["id"]
+        actor_key = _pick_identifier(task.get("actor_id") or task.get("actor"))
+        actor_id = actor_lookup.get(actor_key)
+        if not actor_id:
+            actor_id = actors[0]["id"]
+        entry = {
+            "id": task_id,
+            "name": name,
+            "actor_id": actor_id,
+            "phase_id": phase_id,
+        }
+        entry["handoff_to"] = _as_list(task.get("handoff_to"))
+        systems = _as_list(task.get("systems"))
+        if systems:
+            entry["systems"] = systems
+        if "notes" in task:
+            entry["notes"] = task["notes"]
+        tasks.append(entry)
+    if not tasks:
+        tasks = [{"id": "task_1", "name": "unknown", "actor_id": actors[0]["id"], "phase_id": phases[0]["id"], "handoff_to": []}]
+    data["tasks"] = tasks
+
+    flows = []
+    for idx, flow in enumerate(data.get("flows", []), start=1):
+        flow_id = flow.get("id") or f"flow_{idx}"
+        entry = {
+            "id": flow_id,
+            "from": flow.get("from") or flow.get("source") or "",
+            "to": flow.get("to") or flow.get("target") or "",
+        }
+        if flow.get("condition"):
+            entry["condition"] = flow["condition"]
+        if flow.get("notes"):
+            entry["notes"] = flow["notes"]
+        flows.append(entry)
+    flows = [f for f in flows if f["from"] and f["to"]]
+    if not flows:
+        flows = [{"id": "flow_1", "from": tasks[0]["id"], "to": tasks[-1]["id"]}]
+    data["flows"] = flows
+
+    gateways = []
+    for idx, gateway in enumerate(data.get("gateways", []), start=1):
+        name = gateway.get("name") or gateway.get("title") or f"gateway_{idx}"
+        gateway_id = gateway.get("id") or _slugify_id(name, "gateway", idx)
+        entry = {"id": gateway_id, "name": name, "type": gateway.get("type", "exclusive")}
+        if "notes" in gateway:
+            entry["notes"] = gateway["notes"]
+        gateways.append(entry)
+    data["gateways"] = gateways
+
+    issues = []
+    severity_choices = {"info", "warning", "critical"}
+    for idx, issue in enumerate(data.get("issues", []), start=1):
+        issue_id = issue.get("id") or f"issue_{idx}"
+        note = issue.get("note") or issue.get("description") or "UNKNOWN"
+        entry = {"id": issue_id, "note": note}
+        severity = issue.get("severity")
+        if severity:
+            sev = severity.lower()
+            if sev in severity_choices:
+                entry["severity"] = sev
+        issues.append(entry)
+    data["issues"] = issues
+
+    metadata = data.get("metadata", {})
+    today = date.today().isoformat()
+    data["metadata"] = {
+        "id": metadata.get("id", "sample-flow"),
+        "title": metadata.get("title", metadata.get("name", "LLM generated flow")),
+        "source": metadata.get("source", "samples/input/sample-small-01.md"),
+        "last_updated": metadata.get("last_updated", today),
+    }
+
+    return data
+
+
 
 
 def validate(document: Dict[str, Any], schema: Dict[str, Any]) -> None:
@@ -131,6 +307,7 @@ def generate_flow(
         client = OpenAILLMClient()
 
     raw = client.structured_flow(prompt=prompt, schema=schema, model=model)
+    raw = normalize_flow_document(raw)
     if not skip_validation:
         validate(raw, schema)
     return FlowDocument(**raw)

@@ -4,13 +4,15 @@ Common pytest fixtures for Business-flow-maker tests.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import Iterator, Tuple
+from typing import Dict, Iterator, Tuple
 
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = PROJECT_ROOT / "schemas" / "flow.schema.json"
+LLM_RAW_SAMPLE_PATH = PROJECT_ROOT / "tests" / "data" / "llm_raw_sample.json"
 
 SAMPLE_CASES: Tuple[Tuple[str, Path, Path], ...] = (
     (
@@ -39,3 +41,8 @@ def schema_path() -> Path:
 @pytest.fixture(params=SAMPLE_CASES, ids=lambda case: case[0])
 def layer1_sample_case(request: pytest.FixtureRequest) -> Iterator[Tuple[str, Path, Path]]:
     yield request.param
+
+
+@pytest.fixture(scope="session")
+def llm_raw_sample() -> Dict[str, object]:
+    return json.loads(LLM_RAW_SAMPLE_PATH.read_text(encoding="utf-8-sig"))

@@ -1,0 +1,36 @@
+﻿{
+  "actors": [
+    {"name": "Sales"},
+    {"name": "System Bot", "role": "system"}
+  ],
+  "phases": [
+    {"name": "Intake"},
+    {"name": "Approval", "description": "Final decision"}
+  ],
+  "tasks": [
+    {
+      "name": "Collect form",
+      "actor": "Sales",
+      "phase": "Intake",
+      "handoff_to": "System Bot"
+    },
+    {
+      "name": "Double check",
+      "actor": ["System Bot"],
+      "phase_id": "phase_unknown",
+      "systems": ["SharePoint"],
+      "notes": "LLM draft"
+    }
+  ],
+  "flows": [
+    {"source": "task_collect", "target": "task_double"},
+    {"from": "task_collect", "to": "task_double", "condition": ">=300k"}
+  ],
+  "issues": [
+    {"note": "Template differs", "severity": "unknown"}
+  ],
+  "metadata": {
+    "title": "LLM raw sample",
+    "author": "assistant"
+  }
+}

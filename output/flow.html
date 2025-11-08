@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>購買申請の即日承認</title>
+  <title>購買申請の即日承認（小規模サンプル）</title>
   <style>
     body { font-family: "Segoe UI", sans-serif; margin: 24px; background-color: #fafafa; }
     .panel { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); margin-bottom: 24px; }
@@ -14,19 +14,19 @@
 </head>
 <body>
   <div class="panel">
-    <h1>購買申請の即日承認</h1>
-    <p>ID: sample-small-01 / Source: samples/input/sample-small-01.md / Last updated: 2025-11-07</p>
+    <h1>購買申請の即日承認（小規模サンプル）</h1>
+    <p>ID: purchase_request_immediate_approval_small / Source: ユーザ提供サンプル / Last updated: 2024-06-01</p>
   </div>
   <div class="panel">
     <h2>Swimlane view</h2>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1130 500" width="1130" height="500"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="3" orient="auto"><path d="M0,0 L10,3 L0,6 Z" fill="#555" /></marker></defs><rect x="40" y="40" width="1050" height="140" fill="#f8f8f8" stroke="#d0d0d0" /><text x="50" y="70" font-size="16" font-family="Segoe UI, sans-serif">営業・コンサル</text><rect x="40" y="180" width="1050" height="140" fill="#f0f0f0" stroke="#d0d0d0" /><text x="50" y="210" font-size="16" font-family="Segoe UI, sans-serif">購買担当</text><rect x="40" y="320" width="1050" height="140" fill="#f8f8f8" stroke="#d0d0d0" /><text x="50" y="350" font-size="16" font-family="Segoe UI, sans-serif">経理／役員決裁</text><text x="280.0" y="30" font-size="14" font-family="Segoe UI, sans-serif" text-anchor="middle">申請受付</text><text x="520.0" y="30" font-size="14" font-family="Segoe UI, sans-serif" text-anchor="middle">内容確認</text><text x="760.0" y="30" font-size="14" font-family="Segoe UI, sans-serif" text-anchor="middle">承認</text><text x="1000.0" y="30" font-size="14" font-family="Segoe UI, sans-serif" text-anchor="middle">発注・記録</text><rect x="190" y="190" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#555555" /><text x="280.0" y="219.0" font-size="13" font-family="Segoe UI, sans-serif" text-anchor="middle">申請フォーム受領</text><rect x="430" y="190" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#555555" /><text x="520.0" y="219.0" font-size="13" font-family="Segoe UI, sans-serif" text-anchor="middle">入力内容の正規化</text><rect x="670" y="190" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#555555" /><text x="760.0" y="219.0" font-size="13" font-family="Segoe UI, sans-serif" text-anchor="middle">二段階承認</text><rect x="910" y="190" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#555555" /><text x="1000.0" y="219.0" font-size="13" font-family="Segoe UI, sans-serif" text-anchor="middle">発注・記録更新</text><polygon points="520.0,235.6 534.4,250.0 520.0,264.4 505.6,250.0" fill="#fff4e6" stroke="#d17a22" stroke-width="2" /><text x="520.0" y="255.0" font-size="12" font-family="Segoe UI, sans-serif" text-anchor="middle">30万円超か？</text><line x1="370" y1="214.0" x2="430" y2="214.0" stroke="#555" stroke-width="2" marker-end="url(#arrow)" /><line x1="610" y1="214.0" x2="520.0" y2="250.0" stroke="#555" stroke-width="2" marker-end="url(#arrow)" /><line x1="700.0" y1="274.0" x2="670" y2="214.0" stroke="#555" stroke-width="2" marker-end="url(#arrow)" /><text x="595.0" y="216.0" font-size="11" font-family="Segoe UI, sans-serif" text-anchor="middle" fill="#444">&gt;=300k</text><line x1="700.0" y1="274.0" x2="910" y2="214.0" stroke="#555" stroke-width="2" marker-end="url(#arrow)" /><text x="715.0" y="216.0" font-size="11" font-family="Segoe UI, sans-serif" text-anchor="middle" fill="#444">&lt;300k</text><line x1="850" y1="214.0" x2="910" y2="214.0" stroke="#555" stroke-width="2" marker-end="url(#arrow)" /></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 500" width="650" height="500"><defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="10" refY="3" orient="auto"><path d="M0,0 L10,3 L0,6 Z" fill="#555" /></marker></defs><rect x="40" y="40" width="570" height="140" fill="#f8f8f8" stroke="#d0d0d0" /><text x="50" y="70" font-size="16" font-family="Segoe UI, sans-serif">営業・コンサル申請者</text><rect x="40" y="180" width="570" height="140" fill="#f0f0f0" stroke="#d0d0d0" /><text x="50" y="210" font-size="16" font-family="Segoe UI, sans-serif">購買担当者</text><rect x="40" y="320" width="570" height="140" fill="#f8f8f8" stroke="#d0d0d0" /><text x="50" y="350" font-size="16" font-family="Segoe UI, sans-serif">役員</text><text x="280.0" y="30" font-size="14" font-family="Segoe UI, sans-serif" text-anchor="middle">申請受付</text><text x="520.0" y="30" font-size="14" font-family="Segoe UI, sans-serif" text-anchor="middle">承認</text><rect x="190" y="226.0" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#555555" /><text x="280.0" y="255.0" font-size="13" font-family="Segoe UI, sans-serif" text-anchor="middle">申請受領</text><rect x="190" y="226.0" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#555555" /><text x="280.0" y="255.0" font-size="13" font-family="Segoe UI, sans-serif" text-anchor="middle">申請内容正規化</text><rect x="430" y="86.0" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#555555" /><text x="520.0" y="115.0" font-size="13" font-family="Segoe UI, sans-serif" text-anchor="middle">一次承認</text><rect x="430" y="86.0" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#555555" /><text x="520.0" y="115.0" font-size="13" font-family="Segoe UI, sans-serif" text-anchor="middle">二次承認</text><rect x="430" y="366.0" width="180" height="48" rx="6" ry="6" fill="#ffffff" stroke="#555555" /><text x="520.0" y="395.0" font-size="13" font-family="Segoe UI, sans-serif" text-anchor="middle">役員承認</text><line x1="370" y1="250.0" x2="430" y2="390.0" stroke="#555" stroke-width="2" marker-end="url(#arrow)" /></svg>
   </div>
   <div class="panel">
     <h2>概要</h2>
-    <p>Actors: 3 / Phases: 4 / Tasks: 4 / Gateways: 1</p>
+    <p>Actors: 3 / Phases: 2 / Tasks: 5 / Gateways: 0</p>
     <h3>Issues</h3>
     <ul>
-      <li>フォーム項目が統一されておらず、正規化ルールを別途定義する必要あり。</li><li>緊急紙フローの置き換え手順が未定。</li>
+      <li>UNKNOWN: 申請テンプレートの入力抜け漏れが多発</li><li>UNKNOWN: 案件ごとに乱立する申請テンプレート</li><li>UNKNOWN: 紙の押印フローによる承認待ちで1日以上滞留</li>
     </ul>
   </div>
 </body>

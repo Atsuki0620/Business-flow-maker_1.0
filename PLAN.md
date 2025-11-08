@@ -1,6 +1,7 @@
-# Business-flow-maker 開発計画書
+﻿# Business-flow-maker 開発計画書
 
 ## 改訂履歴
+- 2025-11-08 v0.31（Layer1可視化Hotfix）HTML/SVG/レビュー出力をUTF-8(BOM付)化しSwimlane配置を補正
 - 2025-11-08 v0.3（タスク1着手）requirements.txt追加と環境セットアップ手順を追記
 - 2025-11-07 v0.2（UTF-8 正常化・ディレクトリ雛形・サンプル3件・JSON Schema 草案・Layer1 ジェネレーター雛形を追加）
 - 2025-11-07 v0.1（初稿）
@@ -53,6 +54,7 @@
 ### 3.1 機能要件
 1. **独自JSON生成**：actors, phases, tasks（責任/RACI/handoff_to/systems/notes を含む）、gateways、flows、issues を出力し、曖昧な点は `issues` に列挙する。
 2. **ブラウザ可視化（レイヤー1）**：JSON を読み込み、泳走レーン／縦積みレイアウトで SVG 化し、未参照IDや孤立ノードも検知する。
+   - Windowsローカル確認を優先し、HTML/SVG/レビューはUTF-8(BOM付)で書き出す。Swimlane内タスク/ゲートウェイはレーン中央に整列させ図の崩れを抑制（2025-11-08 Hotfix）。
 3. **BPMN変換（レイヤー2）**：laneSet、task、exclusiveGateway、sequenceFlow を生成し、bpmn-js＋bpmnlint で検証する。
 4. **エクスポート**：SVG/PNG を高解像度で出力し、PPT 貼付に耐える品質を確保する。
 5. **レビュー出力**：本書 §8 のチェックリストと Lint 結果をテキストで出力する。
@@ -81,6 +83,12 @@
 - レイアウト調整（レーン再配置／ラベル折返し）。
 - Lint ルールのチューニング（未接続フロー、重複タスク名など）。
 - 運用チェックリストと出力確認プロセスを整備。
+### 4.x .env 運用ポリシー
+- .env は実行直前に対象プロバイダのテンプレート（例: .env.openai / .env.azure）をコピーして生成し、作業後は削除する。設定を混在させない。
+- OpenAI API 利用時は LLM_PROVIDER=openai と OPENAI_API_KEY のみを記述し、HTTP_PROXY / HTTPS_PROXY は空のままにする。切替コマンド例: Copy-Item .env.openai .env。
+- Azure OpenAI 利用時は LLM_PROVIDER=azure / API_KEY / API_VERSION / AZURE_ENDPOINT に加え、必要に応じて HTTP_PROXY / HTTPS_PROXY を .env.azure に記述し、Copy-Item .env.azure .env で展開する。
+- .env は Git 管理外だが、どの設定で成果物を生成したかを PLAN 改訂履歴・PR 説明・output/README.md に記録してトレーサビリティを確保する。
+
 **Phase 4：任意拡張**
 - 正規化＆クリーニング機能、表記ゆれ辞書、ID 採番の強化。
 - PPTX 自動化とテンプレレイアウト。

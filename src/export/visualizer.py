@@ -17,9 +17,11 @@ LANE_HEADER_WIDTH = 150
 TASK_WIDTH = 180
 TASK_HEIGHT = 48
 COLUMN_GAP = 60
-ROW_GAP = 10
 MARGIN_X = 40
 MARGIN_Y = 40
+
+UTF8_WITH_BOM = "utf-8-sig"
+SVG_XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8"?>\n'
 
 
 @dataclass
@@ -79,8 +81,9 @@ def build_layout(flow: Dict[str, Any]) -> Dict[str, NodeLayout]:
     for task in flow.get("tasks", []):
         actor_idx = actor_order.get(task.get("actor_id", ""), 0)
         phase_idx = phase_order.get(task.get("phase_id", ""), 0)
+        lane_top = MARGIN_Y + actor_idx * LANE_HEIGHT
         x = MARGIN_X + LANE_HEADER_WIDTH + phase_idx * (TASK_WIDTH + COLUMN_GAP)
-        y = MARGIN_Y + actor_idx * LANE_HEIGHT + ROW_GAP
+        y = lane_top + (LANE_HEIGHT - TASK_HEIGHT) / 2
         positions[task["id"]] = NodeLayout(
             node_id=task["id"],
             label=task["name"],
@@ -95,8 +98,9 @@ def build_layout(flow: Dict[str, Any]) -> Dict[str, NodeLayout]:
         node_id = gateway["id"]
         actor_idx = infer_actor_idx(node_id, flow, actor_order)
         phase_idx = infer_phase_idx(node_id, flow, phase_order)
+        lane_top = MARGIN_Y + actor_idx * LANE_HEIGHT
         x = MARGIN_X + LANE_HEADER_WIDTH + phase_idx * (TASK_WIDTH + COLUMN_GAP) + TASK_WIDTH / 2
-        y = MARGIN_Y + actor_idx * LANE_HEIGHT + LANE_HEIGHT / 2
+        y = lane_top + LANE_HEIGHT / 2
         positions[node_id] = NodeLayout(
             node_id=node_id,
             label=gateway.get("name", ""),
@@ -343,15 +347,16 @@ def build_review(flow: Dict[str, Any]) -> str:
 
 def save_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8")
+    path.write_text(content, encoding=UTF8_WITH_BOM)
 
 
 def run_export(flow_path: Path, html_path: Path, svg_path: Path, review_path: Path) -> None:
     flow = load_flow(flow_path)
-    svg = build_svg(flow)
-    html = build_html(flow, svg)
+    svg_markup = build_svg(flow)
+    svg_file_markup = f"{SVG_XML_DECLARATION}{svg_markup}"
+    html = build_html(flow, svg_markup)
     review = build_review(flow)
-    save_text(svg_path, svg)
+    save_text(svg_path, svg_file_markup)
     save_text(html_path, html)
     save_text(review_path, review)
 

@@ -1,14 +1,25 @@
 # Repository Guidelines
 
 ## はじめに
-本リポジトリは業務フローをLLMで整形し、HTML・BPMN・画像まで落とし込む計画をまとめています。常に最新の `PLAN.md` を参照し、ドキュメント化されていない判断は必ず追記してください。日本語で簡潔かつ丁寧に回答してください。
+本リポジトリは業務フローをLLMで整形し、HTML・BPMN・画像まで落とし込む計画をまとめています。常に最新のドキュメントを参照し、ドキュメント化されていない判断は必ず追記してください。日本語で簡潔かつ丁寧に回答してください。
+
+## 必読ドキュメント
+開発時は以下の順番でドキュメントを参照してください：
+
+1. **[README.md](README.md)** - プロジェクト概要とクイックスタート（最初に読む）
+2. **[PLAN.md](PLAN.md)** - 開発計画の詳細（アーキテクチャ、スコープ、実装ステップ）
+3. **[CHANGELOG.md](CHANGELOG.md)** - 改訂履歴とバージョン管理
 
 ## プロジェクト構成と配置
-- `PLAN.md`: 開発計画の単一ソース。更新ごとに版情報を先頭へ追記。
-- `src/`: JSON生成・整形・BPMN変換などのPython/TypeScriptスクリプトを配置予定。機能別に `layer1/`, `layer2/`, `export/` サブフォルダを切る。
-- `schemas/`: 独自JSONおよびBPMNテンプレートのSchemaとサンプル。
+- `README.md`: プロジェクト概要、インストール、クイックスタート。
+- `PLAN.md`: 開発計画の単一ソース。詳細設計とアーキテクチャ。
+- `CHANGELOG.md`: 全ての重要な変更履歴を時系列で記録。
+- `src/core/`: JSON生成（generator.py）、LLMクライアント（llm_client.py）、BPMN変換（bpmn_converter.py）。
+- `src/visualizers/`: HTML/SVG可視化（html_visualizer.py）、Mermaid生成（mermaid_visualizer.py）。
+- `src/utils/`: 実行管理（run_manager.py）など補助機能。
+- `runs/`: 実行履歴の自動管理ディレクトリ（タイムスタンプ付き）。
+- `schemas/`: JSON Schema定義とBPMNテンプレート。
 - `samples/`: 匿名化済みの入力素材と期待されるJSON/BPMN出力。
-- `output/`: 最新の `flow.json`, `flow.bpmn`, `flow.svg`, `flow.png` をフェーズ別に保管。
 
 ## ビルド・テスト・開発コマンド
 - `python -m venv .venv && .\\.venv\\Scripts\\activate`: 仮想環境を作成し依存を分離。

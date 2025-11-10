@@ -1,16 +1,11 @@
-﻿# Business-flow-maker 開発計画書
+﻿# Business-flow-maker 計画書
 
-## 改訂履歴
-- 2025-11-10 v0.33（LLMクライアント分離、Mermaid生成、tinyサンプル追加）
-  - `src/llm_client_builder.py` 新規作成（LLM client関連機能を分離）
-  - `src/layer1/generator.py` → `src/layer1/flow_json_generator.py` にリネーム
-  - `src/export/mermaid_generator.py` 新規作成（flow.json → Mermaid flowchart TD変換）
-  - `samples/input/sample-tiny-01.md` と `samples/expected/sample-tiny-01.json` 追加（備品購入申請フロー：2部署、7タスク、1ゲートウェイ）
-- 2025-11-08 v0.32（LLM プロバイダ自動検出と generation メタデータ追記、.env.example 追加）
-- 2025-11-08 v0.31（Layer1可視化Hotfix）HTML/SVG/レビュー出力をUTF-8(BOM付)化しSwimlane配置を補正
-- 2025-11-08 v0.3（タスク1着手）requirements.txt追加と環境セットアップ手順を追記
-- 2025-11-07 v0.2（UTF-8 正常化・ディレクトリ雛形・サンプル3件・JSON Schema 草案・Layer1 ジェネレーター雛形を追加）
-- 2025-11-07 v0.1（初稿）
+[最終更新] 2025年11月10日 00:00 JST
+
+## 参照ドキュメント
+- [README.md](README.md) - プロジェクト概要とクイックスタート
+- [CHANGELOG.md](CHANGELOG.md) - 改訂履歴とバージョン管理
+- [AGENTS.md](AGENTS.md) - 開発者向けガイドライン
 
 ---
 
@@ -32,10 +27,12 @@
   - LLM で独自JSON（actors/phases/tasks/flows/issues）を生成する。
   - HTML+JS（elk.js 等）で自動レイアウトしたSVGを表示する。
   - JSON Schema 検証と軽量な体裁チェック、レビュー用チェックリストを自動出力する。
+  - **実装構造**: `src/core/generator.py` + `src/visualizers/`（HTML/SVG、Mermaid生成）
 - **レイヤー2（BPMN 準拠の確定形）**
   - 独自JSONを BPMN 2.0 XML へ変換する。
   - bpmn-js で `.bpmn` を表示し最終確認する。
   - bpmnlint でルールを検証し、SVG/PNG を出力して PPT へ貼り付ける。
+  - **実装構造**: `src/core/bpmn_converter.py`
 
 ---
 
@@ -187,31 +184,3 @@
 **注記**：本計画書はフェーズ進行や要件変更に応じて随時更新し、版情報を冒頭に追記する。
 
 ---
-
-## 13. 直近の実装状況（2025-11-07 時点）
-- `src/` 配下に layer1/layer2/export の雛形モジュールと README を整備済み。
-- `schemas/flow.schema.json` で actors/phases/tasks/flows/issues を含む JSON Schema 草案を定義。
-- `samples/input|expected/` に小・中・大の匿名化サンプル3件を配置し、Phase0 の要件を満たした。
-- `src/layer1/generator.py` で LLM/ダミークライアント対応の JSON 生成 CLI を実装し、`output/flow.json` へ出力できることを確認。
-
----
-
-## 14. 直近タスク計画（検証済み）
-今後の優先度と依存関係を踏まえ、以下の順番で PDCA を回す。
-
-1. **環境整備（PDCA①）**  
-   - *Plan*: `.venv` を作成し、`jsonschema` と `openai` を `requirements.txt` に記載した上で pip install する。`.env` の API キーを環境変数として読み込めるようスクリプトを調整。  
-   - *Do*: 仮想環境で `python -m src.layer1.generator` を Stub/本番 API それぞれで実行。  
-   - *Check*: Schema バリデーションと API キー参照が成功するか、`output/flow.json` がサンプルどおりか確認。  
-   - *Action*: 2025-11-08時点で requirements/PLAN/src-layer1 を更新済み。残タスクは README 反映と CI 手順整備。
-
-2. **Layer1 自動テスト拡充（PDCA②）**  
-   - *Plan*: pytest でサンプル入力→期待 JSON を比較するユニットテストを設計し、CI 実行を想定。  
-   - *Do*: `tests/test_layer1_generator.py` を追加し、スタブ JSON を用いたテストを実装。  
-   - *Check*: `pytest` がローカルで成功するか、失敗時のログで欠落データを把握。  
-   - *Action*: 2025-11-08に tests/conftest.py と tests/test_layer1_generator.py を追加し pytest 3ケースが通過。CI 追加と LLM 実行パスのモック化を継続。
-3. **Layer2/BPMN パイプライン実装（PDCA③）**  
-   - *Plan*: JSON→BPMN 変換モジュール、bpmnlint 連携、SVG/PNG エクスポート手順を定義。  
-   - *Do*: `src/layer2` と `src/export` に実処理を実装し、`samples/expected/` に BPMN/画像出力例を追加。  
-   - *Check*: bpmn-js での描画確認、bpmnlint 合否、画像品質を検証。  
-   - *Action*: 問題点を `issues` や ADR に記録し、フェーズ完了条件を満たしたら Phase2 へ進む。

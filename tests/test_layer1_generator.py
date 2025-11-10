@@ -5,8 +5,9 @@ import os
 from pathlib import Path
 from typing import Dict, Tuple
 
-from src.layer1 import generator as layer1_generator
-from src.layer1.generator import FlowDocument, generate_flow, normalize_flow_document, is_dummy_value
+from src.layer1 import flow_json_generator as layer1_generator
+from src.layer1.flow_json_generator import FlowDocument, generate_flow, normalize_flow_document
+from src.llm_client_builder import is_dummy_value
 
 
 def _load_expected(path: Path) -> dict:
@@ -59,41 +60,49 @@ def test_is_dummy_value_variations() -> None:
 
 
 def test_cleanup_dummy_proxies(monkeypatch) -> None:
+    from src.llm_client_builder import cleanup_dummy_proxies
+
     monkeypatch.setenv("HTTP_PROXY", "http://XXX.XX.X.XX:XXXX")
     monkeypatch.setenv("HTTPS_PROXY", "http://valid.proxy:8080")
 
-    layer1_generator.cleanup_dummy_proxies()
+    cleanup_dummy_proxies()
 
     assert "HTTP_PROXY" not in os.environ
     assert os.environ["HTTPS_PROXY"] == "http://valid.proxy:8080"
 
 
 def test_detect_provider_prefers_azure(monkeypatch) -> None:
-    monkeypatch.setattr(layer1_generator, "_PROVIDER_CACHE", None, raising=False)
-    monkeypatch.setattr(layer1_generator, "_PROVIDER_ERRORS", [], raising=False)
-    monkeypatch.setattr(layer1_generator, "validate_azure_env", lambda: True)
-    monkeypatch.setattr(layer1_generator, "test_azure_available", lambda: True)
-    monkeypatch.setattr(layer1_generator, "validate_openai_env", lambda: True)
-    monkeypatch.setattr(layer1_generator, "test_openai_available", lambda: True)
+    import src.llm_client_builder as llm_builder
 
-    assert layer1_generator.detect_provider() == "azure"
+    monkeypatch.setattr(llm_builder, "_PROVIDER_CACHE", None, raising=False)
+    monkeypatch.setattr(llm_builder, "_PROVIDER_ERRORS", [], raising=False)
+    monkeypatch.setattr(llm_builder, "validate_azure_env", lambda: True)
+    monkeypatch.setattr(llm_builder, "test_azure_available", lambda: True)
+    monkeypatch.setattr(llm_builder, "validate_openai_env", lambda: True)
+    monkeypatch.setattr(llm_builder, "test_openai_available", lambda: True)
+
+    assert llm_builder.detect_provider() == "azure"
 
 
 def test_detect_provider_handles_missing_env(monkeypatch) -> None:
-    monkeypatch.setattr(layer1_generator, "_PROVIDER_CACHE", None, raising=False)
-    monkeypatch.setattr(layer1_generator, "_PROVIDER_ERRORS", [], raising=False)
-    monkeypatch.setattr(layer1_generator, "validate_azure_env", lambda: False)
-    monkeypatch.setattr(layer1_generator, "test_azure_available", lambda: False)
-    monkeypatch.setattr(layer1_generator, "validate_openai_env", lambda: False)
-    monkeypatch.setattr(layer1_generator, "test_openai_available", lambda: False)
+    import src.llm_client_builder as llm_builder
 
-    assert layer1_generator.detect_provider() is None
-    assert layer1_generator._PROVIDER_ERRORS  # type: ignore[attr-defined]
+    monkeypatch.setattr(llm_builder, "_PROVIDER_CACHE", None, raising=False)
+    monkeypatch.setattr(llm_builder, "_PROVIDER_ERRORS", [], raising=False)
+    monkeypatch.setattr(llm_builder, "validate_azure_env", lambda: False)
+    monkeypatch.setattr(llm_builder, "test_azure_available", lambda: False)
+    monkeypatch.setattr(llm_builder, "validate_openai_env", lambda: False)
+    monkeypatch.setattr(llm_builder, "test_openai_available", lambda: False)
+
+    assert llm_builder.detect_provider() is None
+    assert llm_builder._PROVIDER_ERRORS  # type: ignore[attr-defined]
 
 
 def test_generate_flow_records_generation_metadata(monkeypatch, tmp_path: Path, schema_path: Path) -> None:
-    monkeypatch.setattr(layer1_generator, "_PROVIDER_CACHE", None, raising=False)
-    monkeypatch.setattr(layer1_generator, "_PROVIDER_ERRORS", [], raising=False)
+    import src.llm_client_builder as llm_builder
+
+    monkeypatch.setattr(llm_builder, "_PROVIDER_CACHE", None, raising=False)
+    monkeypatch.setattr(llm_builder, "_PROVIDER_ERRORS", [], raising=False)
 
     class FakeClient:
         def structured_flow(self, *, prompt: str, schema: Dict[str, object], model: str) -> Dict[str, object]:
@@ -119,8 +128,8 @@ def test_generate_flow_records_generation_metadata(monkeypatch, tmp_path: Path, 
                 },
             }
 
-    monkeypatch.setattr(layer1_generator, "create_llm_client", lambda: FakeClient())
-    monkeypatch.setattr(layer1_generator, "detect_provider", lambda: "openai")
+    monkeypatch.setattr(llm_builder, "create_llm_client", lambda: FakeClient())
+    monkeypatch.setattr(llm_builder, "detect_provider", lambda: "openai")
 
     input_path = tmp_path / "input.md"
     input_path.write_text("demo input", encoding="utf-8")

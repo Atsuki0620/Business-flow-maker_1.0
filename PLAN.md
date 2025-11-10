@@ -1,6 +1,11 @@
 ﻿# Business-flow-maker 開発計画書
 
 ## 改訂履歴
+- 2025-11-10 v0.33（LLMクライアント分離、Mermaid生成、tinyサンプル追加）
+  - `src/llm_client_builder.py` 新規作成（LLM client関連機能を分離）
+  - `src/layer1/generator.py` → `src/layer1/flow_json_generator.py` にリネーム
+  - `src/export/mermaid_generator.py` 新規作成（flow.json → Mermaid flowchart TD変換）
+  - `samples/input/sample-tiny-01.md` と `samples/expected/sample-tiny-01.json` 追加（備品購入申請フロー：2部署、7タスク、1ゲートウェイ）
 - 2025-11-08 v0.32（LLM プロバイダ自動検出と generation メタデータ追記、.env.example 追加）
 - 2025-11-08 v0.31（Layer1可視化Hotfix）HTML/SVG/レビュー出力をUTF-8(BOM付)化しSwimlane配置を補正
 - 2025-11-08 v0.3（タスク1着手）requirements.txt追加と環境セットアップ手順を追記

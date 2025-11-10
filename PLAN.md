@@ -189,12 +189,38 @@
 
 ---
 
-## 12. 次の一歩と実行トリガー
-- Phase0/1 を開始し、サンプル3件で **レイヤー1のMVP** を完成させる。
-  - JSON スキーマ妥当性
-  - 可視化の視認性
-  - チェックリストの有効性
-- 合格後に Phase2（レイヤー2）へ進む。
+## 12. 次の一歩と今後の予定
+
+### ✅ 完了済み（v0.35時点）
+- ✅ **Phase 0/1**: Layer1のMVP完成（JSON生成、可視化、検証）
+- ✅ **ドキュメント整理**: README/CHANGELOG/PLAN の3層構造確立
+- ✅ **src/構造変更**: core/visualizers/utils/ への再構成
+- ✅ **runs/構造導入**: 実行履歴の自動管理
+
+### 🚧 次のステップ（PDCA③: Layer2/BPMN パイプライン実装）
+
+#### 実装内容
+- JSON→BPMN 2.0 XML 変換モジュールの実装
+  - laneSet（泳線レーン）
+  - task（タスクノード）
+  - exclusiveGateway（排他ゲートウェイ）
+  - sequenceFlow（フロー接続）
+- bpmnlint 連携（BPMN仕様準拠チェック）
+- bpmn-js プレビュー機能
+- SVG/PNG エクスポート手順の定義
+
+#### 完了条件
+- `src/core/bpmn_converter.py` の実装
+- bpmn-js での描画確認
+- bpmnlint 合否検証
+- 画像品質確認
+
+### 🎯 v1.0.0 に向けて
+
+- Layer2（BPMN変換）の実装完了
+- 自動テストのカバレッジ拡充（目標: 80%以上）
+- CI/CD パイプラインの整備（GitHub Actions）
+- セマンティックバージョニング（major.minor.patch）への移行
 
 **注記**：本計画書はフェーズ進行や要件変更に応じて随時更新し、版情報を冒頭に追記する。
 

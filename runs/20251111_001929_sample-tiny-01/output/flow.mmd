@@ -1,0 +1,13 @@
+```mermaid
+flowchart TD
+
+    task_1["unknown"]
+
+    confirm_needs --> obtain_estimate
+    obtain_estimate --> create_application_form
+    create_application_form --> amount_decision
+    amount_decision -->|"yes"| manager_approval
+    amount_decision -->|"no"| general_affairs_approval_order
+    manager_approval --> general_affairs_approval_order
+    general_affairs_approval_order --> delivery_receipt
+```

@@ -1,16 +1,11 @@
-﻿# Business-flow-maker 開発計画書
+﻿# Business-flow-maker 計画書
 
-## 改訂履歴
-- 2025-11-10 v0.33（LLMクライアント分離、Mermaid生成、tinyサンプル追加）
-  - `src/llm_client_builder.py` 新規作成（LLM client関連機能を分離）
-  - `src/layer1/generator.py` → `src/layer1/flow_json_generator.py` にリネーム
-  - `src/export/mermaid_generator.py` 新規作成（flow.json → Mermaid flowchart TD変換）
-  - `samples/input/sample-tiny-01.md` と `samples/expected/sample-tiny-01.json` 追加（備品購入申請フロー：2部署、7タスク、1ゲートウェイ）
-- 2025-11-08 v0.32（LLM プロバイダ自動検出と generation メタデータ追記、.env.example 追加）
-- 2025-11-08 v0.31（Layer1可視化Hotfix）HTML/SVG/レビュー出力をUTF-8(BOM付)化しSwimlane配置を補正
-- 2025-11-08 v0.3（タスク1着手）requirements.txt追加と環境セットアップ手順を追記
-- 2025-11-07 v0.2（UTF-8 正常化・ディレクトリ雛形・サンプル3件・JSON Schema 草案・Layer1 ジェネレーター雛形を追加）
-- 2025-11-07 v0.1（初稿）
+[最終更新] 2025年11月10日 00:00 JST
+
+## 参照ドキュメント
+- [README.md](README.md) - プロジェクト概要とクイックスタート
+- [CHANGELOG.md](CHANGELOG.md) - 改訂履歴とバージョン管理
+- [AGENTS.md](AGENTS.md) - 開発者向けガイドライン
 
 ---
 
@@ -32,10 +27,12 @@
   - LLM で独自JSON（actors/phases/tasks/flows/issues）を生成する。
   - HTML+JS（elk.js 等）で自動レイアウトしたSVGを表示する。
   - JSON Schema 検証と軽量な体裁チェック、レビュー用チェックリストを自動出力する。
+  - **実装構造**: `src/core/generator.py` + `src/visualizers/`（HTML/SVG、Mermaid生成）
 - **レイヤー2（BPMN 準拠の確定形）**
   - 独自JSONを BPMN 2.0 XML へ変換する。
   - bpmn-js で `.bpmn` を表示し最終確認する。
   - bpmnlint でルールを検証し、SVG/PNG を出力して PPT へ貼り付ける。
+  - **実装構造**: `src/core/bpmn_converter.py`
 
 ---
 
@@ -105,8 +102,8 @@
 - **依存導入**：pip install -r requirements.txt を実行すると openai>=1.44.0・jsonschema>=4.22.0・python-dotenv>=1.0.1 が揃い、Layer1 スクリプト／テストの前提が整う。
 - **環境変数**：.env に LLM_PROVIDER=openai|azure、OPENAI_API_KEY=sk-***（Azure 利用時は AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com と AZURE_OPENAI_API_KEY= も追記）を保存する。python-dotenv が src/layer1/generator.py 読み込み時に自動でロードし、OpenAI/Azure SDK が参照する。
 - **実行コマンド**：
-  - スタブ検証：python -m src.layer1.generator --input samples/input/sample-small-01.md --stub samples/expected/sample-small-01.json --output output/flow.json
-  - 本番 API：python -m src.layer1.generator --input <input.md> --model gpt-4.1-mini（Azure モデル利用時は .env の LLM_PROVIDER とエンドポイントで切り替える）
+  - スタブ検証：python -m src.core.generator --input samples/input/sample-small-01.md --stub samples/expected/sample-small-01.json --output output/flow.json
+  - 本番 API：python -m src.core.generator --input <input.md> --model gpt-4.1-mini（Azure モデル利用時は .env の LLM_PROVIDER とエンドポイントで切り替える）
 - **確認ポイント**：output/flow.json が更新され JSON Schema 検証が成功すること、API キー未設定時は SDK がエラーを返し問題箇所を特定できることをログへ残す。
 
 
@@ -169,49 +166,62 @@
 ---
 
 ## 11. 成果物・保管方針
-- 独自JSON：`output/flow.json`（最新版を常に更新）。
-- HTML可視化ファイル：ローカルで開ける静的一式。
-- BPMNファイル：`output/flow.bpmn`。
-- 画像：`output/flow.svg` / `output/flow.png`。
-- レビュー記録：チェックリスト結果、Lintログ、ADR。
+
+### runs/ 構造による実行履歴管理（v0.35〜）
+- **自動生成ディレクトリ**: `runs/YYYYMMDD_HHMMSS_{input_stem}/`
+- **含まれるファイル**:
+  - `info.md`: 実行情報の詳細記録
+    - 基本情報（実行ID、実行日時、実行コマンド）
+    - 入力（元ファイルパス、サイズ、SHA-256ハッシュ）
+    - 生成設定（LLMモデル、プロバイダ、実行時間）
+    - 出力ファイル（相対パス、サイズ）
+    - JSON検証結果（actors数、phases数、tasks数等）
+    - レビューチェックリスト（OK/NG形式）
+  - `output/`: 生成されたファイル（flow.json、flow.html、flow.svg等）
+  - 入力ファイルのコピー（再現性確保）
+
+### 従来の output/ 構造（後方互換性）
+- `--output` オプション指定時は従来通り `output/` ディレクトリに出力
+- 独自JSON：`output/flow.json`
+- HTML可視化ファイル：ローカルで開ける静的一式
+- BPMNファイル：`output/flow.bpmn`（将来実装）
+- 画像：`output/flow.svg` / `output/flow.png`（将来実装）
 
 ---
 
-## 12. 次の一歩と実行トリガー
-- Phase0/1 を開始し、サンプル3件で **レイヤー1のMVP** を完成させる。
-  - JSON スキーマ妥当性
-  - 可視化の視認性
-  - チェックリストの有効性
-- 合格後に Phase2（レイヤー2）へ進む。
+## 12. 次の一歩と今後の予定
+
+### ✅ 完了済み（v0.35時点）
+- ✅ **Phase 0/1**: Layer1のMVP完成（JSON生成、可視化、検証）
+- ✅ **ドキュメント整理**: README/CHANGELOG/PLAN の3層構造確立
+- ✅ **src/構造変更**: core/visualizers/utils/ への再構成
+- ✅ **runs/構造導入**: 実行履歴の自動管理
+
+### 🚧 次のステップ（PDCA③: Layer2/BPMN パイプライン実装）
+
+#### 実装内容
+- JSON→BPMN 2.0 XML 変換モジュールの実装
+  - laneSet（泳線レーン）
+  - task（タスクノード）
+  - exclusiveGateway（排他ゲートウェイ）
+  - sequenceFlow（フロー接続）
+- bpmnlint 連携（BPMN仕様準拠チェック）
+- bpmn-js プレビュー機能
+- SVG/PNG エクスポート手順の定義
+
+#### 完了条件
+- `src/core/bpmn_converter.py` の実装
+- bpmn-js での描画確認
+- bpmnlint 合否検証
+- 画像品質確認
+
+### 🎯 v1.0.0 に向けて
+
+- Layer2（BPMN変換）の実装完了
+- 自動テストのカバレッジ拡充（目標: 80%以上）
+- CI/CD パイプラインの整備（GitHub Actions）
+- セマンティックバージョニング（major.minor.patch）への移行
 
 **注記**：本計画書はフェーズ進行や要件変更に応じて随時更新し、版情報を冒頭に追記する。
 
 ---
-
-## 13. 直近の実装状況（2025-11-07 時点）
-- `src/` 配下に layer1/layer2/export の雛形モジュールと README を整備済み。
-- `schemas/flow.schema.json` で actors/phases/tasks/flows/issues を含む JSON Schema 草案を定義。
-- `samples/input|expected/` に小・中・大の匿名化サンプル3件を配置し、Phase0 の要件を満たした。
-- `src/layer1/generator.py` で LLM/ダミークライアント対応の JSON 生成 CLI を実装し、`output/flow.json` へ出力できることを確認。
-
----
-
-## 14. 直近タスク計画（検証済み）
-今後の優先度と依存関係を踏まえ、以下の順番で PDCA を回す。
-
-1. **環境整備（PDCA①）**  
-   - *Plan*: `.venv` を作成し、`jsonschema` と `openai` を `requirements.txt` に記載した上で pip install する。`.env` の API キーを環境変数として読み込めるようスクリプトを調整。  
-   - *Do*: 仮想環境で `python -m src.layer1.generator` を Stub/本番 API それぞれで実行。  
-   - *Check*: Schema バリデーションと API キー参照が成功するか、`output/flow.json` がサンプルどおりか確認。  
-   - *Action*: 2025-11-08時点で requirements/PLAN/src-layer1 を更新済み。残タスクは README 反映と CI 手順整備。
-
-2. **Layer1 自動テスト拡充（PDCA②）**  
-   - *Plan*: pytest でサンプル入力→期待 JSON を比較するユニットテストを設計し、CI 実行を想定。  
-   - *Do*: `tests/test_layer1_generator.py` を追加し、スタブ JSON を用いたテストを実装。  
-   - *Check*: `pytest` がローカルで成功するか、失敗時のログで欠落データを把握。  
-   - *Action*: 2025-11-08に tests/conftest.py と tests/test_layer1_generator.py を追加し pytest 3ケースが通過。CI 追加と LLM 実行パスのモック化を継続。
-3. **Layer2/BPMN パイプライン実装（PDCA③）**  
-   - *Plan*: JSON→BPMN 変換モジュール、bpmnlint 連携、SVG/PNG エクスポート手順を定義。  
-   - *Do*: `src/layer2` と `src/export` に実処理を実装し、`samples/expected/` に BPMN/画像出力例を追加。  
-   - *Check*: bpmn-js での描画確認、bpmnlint 合否、画像品質を検証。  
-   - *Action*: 問題点を `issues` や ADR に記録し、フェーズ完了条件を満たしたら Phase2 へ進む。

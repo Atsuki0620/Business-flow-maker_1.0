@@ -5,9 +5,9 @@ import os
 from pathlib import Path
 from typing import Dict, Tuple
 
-from src.layer1 import flow_json_generator as layer1_generator
-from src.layer1.flow_json_generator import FlowDocument, generate_flow, normalize_flow_document
-from src.llm_client_builder import is_dummy_value
+from src.core import generator as layer1_generator
+from src.core.generator import FlowDocument, generate_flow, normalize_flow_document
+from src.core.llm_client import is_dummy_value
 
 
 def _load_expected(path: Path) -> dict:
@@ -60,7 +60,7 @@ def test_is_dummy_value_variations() -> None:
 
 
 def test_cleanup_dummy_proxies(monkeypatch) -> None:
-    from src.llm_client_builder import cleanup_dummy_proxies
+    from src.core.llm_client import cleanup_dummy_proxies
 
     monkeypatch.setenv("HTTP_PROXY", "http://XXX.XX.X.XX:XXXX")
     monkeypatch.setenv("HTTPS_PROXY", "http://valid.proxy:8080")
@@ -72,7 +72,7 @@ def test_cleanup_dummy_proxies(monkeypatch) -> None:
 
 
 def test_detect_provider_prefers_azure(monkeypatch) -> None:
-    import src.llm_client_builder as llm_builder
+    import src.core.llm_client as llm_builder
 
     monkeypatch.setattr(llm_builder, "_PROVIDER_CACHE", None, raising=False)
     monkeypatch.setattr(llm_builder, "_PROVIDER_ERRORS", [], raising=False)
@@ -85,7 +85,7 @@ def test_detect_provider_prefers_azure(monkeypatch) -> None:
 
 
 def test_detect_provider_handles_missing_env(monkeypatch) -> None:
-    import src.llm_client_builder as llm_builder
+    import src.core.llm_client as llm_builder
 
     monkeypatch.setattr(llm_builder, "_PROVIDER_CACHE", None, raising=False)
     monkeypatch.setattr(llm_builder, "_PROVIDER_ERRORS", [], raising=False)
@@ -99,7 +99,7 @@ def test_detect_provider_handles_missing_env(monkeypatch) -> None:
 
 
 def test_generate_flow_records_generation_metadata(monkeypatch, tmp_path: Path, schema_path: Path) -> None:
-    import src.llm_client_builder as llm_builder
+    import src.core.llm_client as llm_builder
 
     monkeypatch.setattr(llm_builder, "_PROVIDER_CACHE", None, raising=False)
     monkeypatch.setattr(llm_builder, "_PROVIDER_ERRORS", [], raising=False)

@@ -128,6 +128,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     """メイン処理：flow.json を読み込み、Mermaid 形式に変換して保存する。"""
+    from src.utils import run_manager
+
     args = parse_args()
 
     # flow.json を読み込み
@@ -140,6 +142,27 @@ def main() -> None:
     save_mermaid(mermaid_text, args.output)
 
     print(f"[export] Mermaid flowchart を {args.output} に保存しました。")
+
+    # runs/構造を検出し、info.mdを更新
+    json_path = args.json.resolve()
+    if "runs" in json_path.parts:
+        # runs/ディレクトリを特定
+        run_dir = None
+        for i, part in enumerate(json_path.parts):
+            if part == "runs" and i + 1 < len(json_path.parts):
+                run_dir = pathlib.Path(*json_path.parts[:i+2])
+                break
+
+        if run_dir and run_dir.exists() and (run_dir / "info.md").exists():
+            # 出力ファイル情報を追記（絶対パスに変換してから相対化）
+            output_abs = args.output.resolve()
+            run_dir_abs = run_dir.resolve()
+            output_files = [
+                {"path": str(output_abs.relative_to(run_dir_abs)), "size": output_abs.stat().st_size},
+            ]
+
+            run_manager.update_info_md(run_dir, {"output_files": output_files})
+            print(f"[export] 実行情報を {run_dir / 'info.md'} に追記しました。")
 
 
 if __name__ == "__main__":

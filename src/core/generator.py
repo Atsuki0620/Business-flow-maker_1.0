@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from src.llm_client_builder import LLMClient, create_llm_client, detect_provider
+from src.core.llm_client import LLMClient, create_llm_client, detect_provider
 
 try:
     import jsonschema  # type: ignore
@@ -283,14 +283,34 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", type=pathlib.Path, required=True, help="入力テキストファイル")
     parser.add_argument("--schema", type=pathlib.Path, default=pathlib.Path("schemas/flow.schema.json"))
     parser.add_argument("--model", type=str, default="gpt-4.1-mini")
-    parser.add_argument("--output", type=pathlib.Path, default=pathlib.Path("output/flow.json"))
+    parser.add_argument("--output", type=pathlib.Path, default=None, help="出力先（省略時は runs/ 配下に自動生成）")
     parser.add_argument("--stub", type=pathlib.Path, help="LLM を呼ばずサンプル JSON を読み込む場合に指定")
     parser.add_argument("--skip-validation", action="store_true")
     return parser.parse_args()
 
 
 def main() -> None:
+    import sys
+    import time
+    from src.utils import run_manager
+
     args = parse_args()
+    start_time = time.time()
+
+    # 出力先の決定
+    if args.output is None:
+        # runs/構造を使用
+        run_dir = run_manager.create_run_dir(args.input)
+        run_manager.copy_input_file(args.input, run_dir)
+        output_path = run_dir / "output" / "flow.json"
+        use_runs = True
+    else:
+        # 従来の出力先を使用
+        output_path = args.output
+        run_dir = None
+        use_runs = False
+
+    # JSON生成
     document = generate_flow(
         input_path=args.input,
         schema_path=args.schema,
@@ -298,8 +318,51 @@ def main() -> None:
         use_stub=args.stub,
         skip_validation=args.skip_validation,
     )
-    save_output(document, args.output)
-    print(f"[layer1] flow JSON を {args.output} に保存しました。")
+    save_output(document, output_path)
+
+    elapsed_time = time.time() - start_time
+    print(f"[layer1] flow JSON を {output_path} に保存しました。")
+
+    # runs/構造を使用した場合は info.md を生成
+    if use_runs and run_dir:
+        # 基本情報
+        info = {
+            "execution_id": run_dir.name,
+            "execution_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "command": " ".join(sys.argv),
+            "input_file": str(args.input),
+            "input_size": args.input.stat().st_size,
+            "input_hash": run_manager._calculate_file_hash(args.input),
+        }
+
+        # 生成設定
+        if not args.stub:
+            info["model"] = args.model
+            provider = detect_provider()
+            if provider:
+                info["provider"] = provider
+        info["elapsed_time"] = elapsed_time
+
+        # 出力ファイル
+        info["output_files"] = [
+            {"path": str(output_path.relative_to(run_dir)), "size": output_path.stat().st_size}
+        ]
+
+        run_manager.save_info_md(run_dir, info)
+
+        # JSON検証結果を追記
+        doc_dict = document.to_dict()
+        validation = {
+            "actors_count": len(doc_dict.get("actors", [])),
+            "phases_count": len(doc_dict.get("phases", [])),
+            "tasks_count": len(doc_dict.get("tasks", [])),
+            "flows_count": len(doc_dict.get("flows", [])),
+            "gateways_count": len(doc_dict.get("gateways", [])),
+            "issues_count": len(doc_dict.get("issues", [])),
+        }
+        run_manager.update_info_md(run_dir, {"json_validation": validation})
+
+        print(f"[layer1] 実行情報を {run_dir / 'info.md'} に記録しました。")
 
 
 if __name__ == "__main__":

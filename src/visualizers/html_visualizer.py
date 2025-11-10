@@ -328,21 +328,6 @@ def build_html(flow: Dict[str, Any], svg: str) -> str:
     return html
 
 
-def build_review(flow: Dict[str, Any]) -> str:
-    checklist = [
-        ("actors/phases/tasks/flows/issues をすべて保持している", all(len(flow.get(key, [])) > 0 for key in ["actors", "phases", "tasks", "flows", "issues"])),
-        ("issues に曖昧点や未決事項が列挙されている", len(flow.get("issues", [])) > 0),
-        ("gateway を含む場合は flows で参照漏れがない", all(gw["id"] in {link.get("from") for link in flow.get("flows", [])} | {link.get("to") for link in flow.get("flows", [])} for gw in flow.get("gateways", []))),
-        ("tasks の handoff_to が必ず存在する", all("handoff_to" in task for task in flow.get("tasks", []))),
-    ]
-    lines = ["# Review checklist", ""]
-    for label, ok in checklist:
-        mark = "OK" if ok else "NG"
-        lines.append(f"- [{mark}] {label}")
-    lines.append("")
-    lines.append("自動判定は参考値です。PLAN §8 の全文を確認し、人手で補完してください。")
-    lines.append("")
-    return "\n".join(lines)
 
 
 def save_text(path: Path, content: str) -> None:
@@ -350,30 +335,68 @@ def save_text(path: Path, content: str) -> None:
     path.write_text(content, encoding=UTF8_WITH_BOM)
 
 
-def run_export(flow_path: Path, html_path: Path, svg_path: Path, review_path: Path) -> None:
+def run_export(flow_path: Path, html_path: Path, svg_path: Path) -> None:
     flow = load_flow(flow_path)
     svg_markup = build_svg(flow)
     svg_file_markup = f"{SVG_XML_DECLARATION}{svg_markup}"
     html = build_html(flow, svg_markup)
-    review = build_review(flow)
     save_text(svg_path, svg_file_markup)
     save_text(html_path, html)
-    save_text(review_path, review)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate HTML/SVG preview and review checklist from flow JSON.")
+    parser = argparse.ArgumentParser(description="Generate HTML/SVG preview from flow JSON.")
     parser.add_argument("--json", type=Path, default=Path("output/flow.json"))
     parser.add_argument("--html", type=Path, default=Path("output/flow.html"))
     parser.add_argument("--svg", type=Path, default=Path("output/flow.svg"))
-    parser.add_argument("--review", type=Path, default=Path("output/review_checklist.txt"))
     return parser.parse_args()
 
 
 def main() -> None:
+    from src.utils import run_manager
+
     args = parse_args()
-    run_export(args.json, args.html, args.svg, args.review)
-    print("[export] flow.html / flow.svg / review_checklist.txt を生成しました。")
+    run_export(args.json, args.html, args.svg)
+    print("[export] flow.html / flow.svg を生成しました。")
+
+    # runs/構造を検出し、info.mdを更新
+    json_path = args.json.resolve()
+    if "runs" in json_path.parts:
+        # runs/ディレクトリを特定
+        run_dir = None
+        for i, part in enumerate(json_path.parts):
+            if part == "runs" and i + 1 < len(json_path.parts):
+                run_dir = Path(*json_path.parts[:i+2])
+                break
+
+        if run_dir and run_dir.exists() and (run_dir / "info.md").exists():
+            # 出力ファイル情報を追記（絶対パスに変換してから相対化）
+            html_abs = args.html.resolve()
+            svg_abs = args.svg.resolve()
+            run_dir_abs = run_dir.resolve()
+            output_files = [
+                {"path": str(html_abs.relative_to(run_dir_abs)), "size": html_abs.stat().st_size},
+                {"path": str(svg_abs.relative_to(run_dir_abs)), "size": svg_abs.stat().st_size},
+            ]
+
+            # レビューチェックリストを作成
+            flow = load_flow(args.json)
+            checklist = [
+                {"label": "actors/phases/tasks/flows/issues をすべて保持している",
+                 "status": "OK" if all(len(flow.get(key, [])) > 0 for key in ["actors", "phases", "tasks", "flows", "issues"]) else "NG"},
+                {"label": "issues に曖昧点や未決事項が列挙されている",
+                 "status": "OK" if len(flow.get("issues", [])) > 0 else "NG"},
+                {"label": "gateway を含む場合は flows で参照漏れがない",
+                 "status": "OK" if all(gw["id"] in {link.get("from") for link in flow.get("flows", [])} | {link.get("to") for link in flow.get("flows", [])} for gw in flow.get("gateways", [])) else "NG"},
+                {"label": "tasks の handoff_to が必ず存在する",
+                 "status": "OK" if all("handoff_to" in task for task in flow.get("tasks", [])) else "NG"},
+            ]
+
+            run_manager.update_info_md(run_dir, {
+                "output_files": output_files,
+                "review_checklist": checklist,
+            })
+            print(f"[export] 実行情報を {run_dir / 'info.md'} に追記しました。")
 
 
 if __name__ == "__main__":

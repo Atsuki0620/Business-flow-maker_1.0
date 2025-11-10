@@ -76,17 +76,17 @@ def validate_openai_env() -> bool:
 def validate_azure_env() -> bool:
     """Azure必須3変数が有効か"""
 
-    api_key = os.getenv("API_KEY", "").strip()
-    api_version = os.getenv("API_VERSION", "").strip()
-    endpoint = os.getenv("AZURE_ENDPOINT", "").strip()
+    api_key = os.getenv("AZURE_OPENAI_API_KEY", "").strip()
+    api_version = os.getenv("AZURE_OPENAI_API_VERSION", "").strip()
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT", "").strip()
 
     missing = []
     if not api_key:
-        missing.append("API_KEY")
+        missing.append("AZURE_OPENAI_API_KEY")
     if not api_version:
-        missing.append("API_VERSION")
+        missing.append("AZURE_OPENAI_API_VERSION")
     if not endpoint:
-        missing.append("AZURE_ENDPOINT")
+        missing.append("AZURE_OPENAI_ENDPOINT")
 
     if missing:
         print(f"[layer1] AzureOpenAI: {', '.join(missing)} が未設定です。")
@@ -123,9 +123,9 @@ def test_azure_available() -> bool:
 
     try:
         AzureOpenAI(
-            api_key=os.environ["API_KEY"],
-            api_version=os.environ["API_VERSION"],
-            azure_endpoint=os.environ["AZURE_ENDPOINT"],
+            api_key=os.environ["AZURE_OPENAI_API_KEY"],
+            api_version=os.environ["AZURE_OPENAI_API_VERSION"],
+            azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
         )
     except Exception as exc:  # pragma: no cover - SDK内部の例外をそのまま通知
         print(f"[layer1] AzureOpenAI クライアント初期化に失敗しました: {exc}")
@@ -159,7 +159,7 @@ def detect_provider() -> Optional[str]:
             return _PROVIDER_CACHE
         errors.append("AzureOpenAI: SDK 初期化に失敗しました。")
     else:
-        errors.append("AzureOpenAI: 必須環境変数(API_KEY, API_VERSION, AZURE_ENDPOINT)を正しく設定してください。")
+        errors.append("AzureOpenAI: 必須環境変数(AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_ENDPOINT)を正しく設定してください。")
 
     if validate_openai_env():
         if test_openai_available():
@@ -227,9 +227,9 @@ class AzureOpenAILLMClient:
         if AzureOpenAI is None:
             raise ImportError("openai SDK がインストールされていません。`pip install openai` を実行してください。")
 
-        api_key = os.environ["API_KEY"]
-        api_version = os.environ["API_VERSION"]
-        endpoint = os.environ["AZURE_ENDPOINT"]
+        api_key = os.environ["AZURE_OPENAI_API_KEY"]
+        api_version = os.environ["AZURE_OPENAI_API_VERSION"]
+        endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
 
         self._client = AzureOpenAI(api_key=api_key, api_version=api_version, azure_endpoint=endpoint)
 

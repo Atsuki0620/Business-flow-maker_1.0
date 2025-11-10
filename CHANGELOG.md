@@ -108,11 +108,41 @@
 
 ---
 
-## 次期予定: v0.35（準備中）
+## [v0.35] - 2025-11-10
 
-### 予定内容
-- **src/構造変更**: layer1/layer2/export → core/visualizers/utils/
+### 追加
 - **runs/構造導入**: 実行履歴の自動管理機能
-- **info.md**: 各実行の詳細情報記録
-- **output/削除**: runs/構造への完全移行
-- **review_checklist.txt削除**: info.mdに統合
+  - タイムスタンプ付き実行ディレクトリ（`runs/YYYYMMDD_HHMMSS_{input_stem}/`）
+  - info.md による実行情報記録（実行コマンド、入力情報、生成設定、JSON検証結果、レビューチェックリスト）
+  - 入力ファイルの自動コピー（再現性確保）
+- **src/utils/run_manager.py**: runs/構造管理機能
+  - create_run_dir(): 実行ディレクトリ作成
+  - copy_input_file(): 入力ファイルコピー
+  - save_info_md(), update_info_md(): info.md生成・更新
+  - get_latest_run(), list_runs(): 実行履歴取得
+
+### 変更
+- **src/構造変更**: layer1/layer2/export → core/visualizers/utils/
+  - `src/layer1/flow_json_generator.py` → `src/core/generator.py`
+  - `src/llm_client_builder.py` → `src/core/llm_client.py`
+  - `src/export/visualizer.py` → `src/visualizers/html_visualizer.py`
+  - `src/export/mermaid_generator.py` → `src/visualizers/mermaid_visualizer.py`
+- **generator.py**: --output オプションをデフォルトNoneに変更（省略時はruns/に自動生成）
+- **html_visualizer.py**: runs/構造を検出してinfo.mdを更新
+- **mermaid_visualizer.py**: runs/構造を検出してinfo.mdを更新
+
+### 削除
+- **output/ディレクトリ**: runs/構造へ完全移行
+- **review_checklist.txt**: info.mdに統合
+- **build_review()関数**: html_visualizer.pyから削除
+- **--review引数**: html_visualizer.pyから削除
+
+### ドキュメント
+- README.md: runs/構造の説明とコマンド例を追加
+- PLAN.md: §11「成果物・保管方針」にruns/構造を追記
+- importパスを全て新構造に更新
+
+### 後方互換性
+- --output オプション指定で従来通りの動作を維持
+
+---

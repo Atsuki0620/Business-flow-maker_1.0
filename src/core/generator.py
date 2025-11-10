@@ -59,21 +59,22 @@ def load_schema(schema_path: pathlib.Path) -> Dict[str, Any]:
 
 def build_prompt(input_text: str) -> str:
     base = (
-        "���Ȃ��͋Ɩ��t���[�A�[�L�e�N�g�ł��B�ȉ��̓��͂�ǂ݁A"
-        "actors / phases / tasks / flows / gateways / issues / metadata ���܂� JSON �𐶐����Ă��������B\n"
+        "あなたは業務フローアーキテクトです。以下の入力を読み、"
+        "actors / phases / tasks / flows / gateways / issues / metadata を含む JSON を生成してください。\n"
         f"--- INPUT START ---\n{input_text}\n--- INPUT END ---\n\n"
-        "�K�{���[��:\n"
-        "1. JSON Schema �ɏ������Asnake_case �L�[���ێ�����B\n"
-        "2. �B���܂��͕s���ȏ��� issues[].note �ɋL�^���AUNKNOWN �Ƃ�������܂߂�B\n"
-        "3. flows[].condition �͕K�v�ȏꍇ�̂݋L�ڂ���B\n"
-        "4. tasks[].handoff_to �͋�z��ł��K���܂߂�B\n"
+        "必須ルール:\n"
+        "1. JSON Schema に準拠し、snake_case キーを維持する。\n"
+        "2. 曖昧または不明な情報は issues[].note に記録し、UNKNOWN として扱わず含める。\n"
+        "3. flows[].condition は必要な場合のみ記載する。\n"
+        "4. tasks[].handoff_to は空配列でも必ず含める。\n"
     )
     extras = (
-        "5. actors[].id �ƃ^�X�N[].actor_id �͑S�ẴA�N�^�[ID���g�p����B\n"
-        "6. metadata �́Aid/title/source/last_updated�݂̂𗘗p����B\n"
-        "7. ���͂� ``` �������Ȃ��ł���������JSON���Ԃ��B\n"
+        "5. actors[].id とタスク[].actor_id は全てのアクターIDを使用する。\n"
+        "6. metadata は、id/title/source/last_updated のみを利用する。\n"
+        "7. 出力は ``` などを含まないで純粋なJSONを返す。\n"
     )
     return base + extras
+
 
 
 def _slugify_id(value: str, prefix: str, idx: int) -> str:

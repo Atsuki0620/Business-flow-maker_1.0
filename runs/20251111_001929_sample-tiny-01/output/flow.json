@@ -1,0 +1,93 @@
+{
+  "actors": [
+    {
+      "id": "sales_department",
+      "name": "営業部",
+      "type": "human"
+    },
+    {
+      "id": "general_affairs_department",
+      "name": "総務部",
+      "type": "human"
+    },
+    {
+      "id": "system",
+      "name": "システム",
+      "type": "human"
+    }
+  ],
+  "phases": [
+    {
+      "id": "application_preparation_phase",
+      "name": "申請準備フェーズ"
+    },
+    {
+      "id": "approval_phase",
+      "name": "承認フェーズ"
+    },
+    {
+      "id": "purchase_execution_phase",
+      "name": "購入実行フェーズ"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_1",
+      "name": "unknown",
+      "actor_id": "sales_department",
+      "phase_id": "application_preparation_phase",
+      "handoff_to": []
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow_1",
+      "from": "confirm_needs",
+      "to": "obtain_estimate"
+    },
+    {
+      "id": "flow_2",
+      "from": "obtain_estimate",
+      "to": "create_application_form"
+    },
+    {
+      "id": "flow_3",
+      "from": "create_application_form",
+      "to": "amount_decision"
+    },
+    {
+      "id": "flow_4",
+      "from": "amount_decision",
+      "to": "manager_approval",
+      "condition": "yes"
+    },
+    {
+      "id": "flow_5",
+      "from": "amount_decision",
+      "to": "general_affairs_approval_order",
+      "condition": "no"
+    },
+    {
+      "id": "flow_6",
+      "from": "manager_approval",
+      "to": "general_affairs_approval_order"
+    },
+    {
+      "id": "flow_7",
+      "from": "general_affairs_approval_order",
+      "to": "delivery_receipt"
+    }
+  ],
+  "issues": [],
+  "gateways": [],
+  "metadata": {
+    "id": "equipment_purchase_request_flow",
+    "title": "備品購入申請フロー",
+    "source": "internal",
+    "last_updated": "2023-10-01",
+    "generation": {
+      "model": "gpt-4o-mini",
+      "provider": "openai"
+    }
+  }
+}

@@ -102,8 +102,8 @@
 - **依存導入**：pip install -r requirements.txt を実行すると openai>=1.44.0・jsonschema>=4.22.0・python-dotenv>=1.0.1 が揃い、Layer1 スクリプト／テストの前提が整う。
 - **環境変数**：.env に LLM_PROVIDER=openai|azure、OPENAI_API_KEY=sk-***（Azure 利用時は AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com と AZURE_OPENAI_API_KEY= も追記）を保存する。python-dotenv が src/layer1/generator.py 読み込み時に自動でロードし、OpenAI/Azure SDK が参照する。
 - **実行コマンド**：
-  - スタブ検証：python -m src.layer1.generator --input samples/input/sample-small-01.md --stub samples/expected/sample-small-01.json --output output/flow.json
-  - 本番 API：python -m src.layer1.generator --input <input.md> --model gpt-4.1-mini（Azure モデル利用時は .env の LLM_PROVIDER とエンドポイントで切り替える）
+  - スタブ検証：python -m src.core.generator --input samples/input/sample-small-01.md --stub samples/expected/sample-small-01.json --output output/flow.json
+  - 本番 API：python -m src.core.generator --input <input.md> --model gpt-4.1-mini（Azure モデル利用時は .env の LLM_PROVIDER とエンドポイントで切り替える）
 - **確認ポイント**：output/flow.json が更新され JSON Schema 検証が成功すること、API キー未設定時は SDK がエラーを返し問題箇所を特定できることをログへ残す。
 
 

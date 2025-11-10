@@ -91,13 +91,13 @@ AZURE_OPENAI_API_VERSION=2024-02-15-preview
 
 ```bash
 # スタブモード（API不要、サンプルJSONで検証）
-python -m src.layer1.flow_json_generator \
+python -m src.core.generator \
   --input samples/input/sample-small-01.md \
   --stub samples/expected/sample-small-01.json \
   --output output/flow.json
 
 # LLM実行モード（API使用）
-python -m src.layer1.flow_json_generator \
+python -m src.core.generator \
   --input samples/input/sample-medium-01.md \
   --model gpt-4o-mini \
   --output output/flow.json
@@ -108,7 +108,7 @@ python -m src.layer1.flow_json_generator \
 生成したJSONを泳線図として可視化します。
 
 ```bash
-python -m src.export.visualizer \
+python -m src.visualizers.html_visualizer \
   --json output/flow.json \
   --html output/flow.html \
   --svg output/flow.svg
@@ -119,7 +119,7 @@ python -m src.export.visualizer \
 ### 3. Mermaid フローチャート生成
 
 ```bash
-python -m src.export.mermaid_generator \
+python -m src.visualizers.mermaid_visualizer \
   --json output/flow.json \
   --output output/flow.mmd
 ```

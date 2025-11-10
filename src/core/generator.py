@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from src.llm_client_builder import LLMClient, create_llm_client, detect_provider
+from src.core.llm_client import LLMClient, create_llm_client, detect_provider
 
 try:
     import jsonschema  # type: ignore

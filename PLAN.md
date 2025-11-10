@@ -166,11 +166,26 @@
 ---
 
 ## 11. 成果物・保管方針
-- 独自JSON：`output/flow.json`（最新版を常に更新）。
-- HTML可視化ファイル：ローカルで開ける静的一式。
-- BPMNファイル：`output/flow.bpmn`。
-- 画像：`output/flow.svg` / `output/flow.png`。
-- レビュー記録：チェックリスト結果、Lintログ、ADR。
+
+### runs/ 構造による実行履歴管理（v0.35〜）
+- **自動生成ディレクトリ**: `runs/YYYYMMDD_HHMMSS_{input_stem}/`
+- **含まれるファイル**:
+  - `info.md`: 実行情報の詳細記録
+    - 基本情報（実行ID、実行日時、実行コマンド）
+    - 入力（元ファイルパス、サイズ、SHA-256ハッシュ）
+    - 生成設定（LLMモデル、プロバイダ、実行時間）
+    - 出力ファイル（相対パス、サイズ）
+    - JSON検証結果（actors数、phases数、tasks数等）
+    - レビューチェックリスト（OK/NG形式）
+  - `output/`: 生成されたファイル（flow.json、flow.html、flow.svg等）
+  - 入力ファイルのコピー（再現性確保）
+
+### 従来の output/ 構造（後方互換性）
+- `--output` オプション指定時は従来通り `output/` ディレクトリに出力
+- 独自JSON：`output/flow.json`
+- HTML可視化ファイル：ローカルで開ける静的一式
+- BPMNファイル：`output/flow.bpmn`（将来実装）
+- 画像：`output/flow.svg` / `output/flow.png`（将来実装）
 
 ---
 

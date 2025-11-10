@@ -90,7 +90,12 @@ AZURE_OPENAI_API_VERSION=2024-02-15-preview
 業務フローの文書から独自JSONを生成します。
 
 ```bash
-# スタブモード（API不要、サンプルJSONで検証）
+# runs/構造を使用（推奨）：実行履歴を自動管理
+python -m src.core.generator \
+  --input samples/input/sample-small-01.md \
+  --stub samples/expected/sample-small-01.json
+
+# 従来の出力先を指定（後方互換性）
 python -m src.core.generator \
   --input samples/input/sample-small-01.md \
   --stub samples/expected/sample-small-01.json \
@@ -99,26 +104,45 @@ python -m src.core.generator \
 # LLM実行モード（API使用）
 python -m src.core.generator \
   --input samples/input/sample-medium-01.md \
-  --model gpt-4o-mini \
-  --output output/flow.json
+  --model gpt-4o-mini
 ```
+
+**runs/構造について**:
+- `--output` を省略すると、`runs/YYYYMMDD_HHMMSS_{input_stem}/` に実行履歴が自動保存されます
+- 各実行ディレクトリには以下が含まれます：
+  - `info.md`: 実行情報（実行コマンド、入力ファイル情報、JSON検証結果、レビューチェックリスト）
+  - `output/`: 生成されたファイル（flow.json、flow.html、flow.svg など）
+  - 入力ファイルのコピー（再現性確保）
 
 ### 2. HTML可視化
 
 生成したJSONを泳線図として可視化します。
 
 ```bash
+# runs/構造のJSONを指定（info.mdに自動記録）
+python -m src.visualizers.html_visualizer \
+  --json runs/20251110_123456_sample-small-01/output/flow.json \
+  --html runs/20251110_123456_sample-small-01/output/flow.html \
+  --svg runs/20251110_123456_sample-small-01/output/flow.svg
+
+# 従来の出力先を指定
 python -m src.visualizers.html_visualizer \
   --json output/flow.json \
   --html output/flow.html \
   --svg output/flow.svg
 ```
 
-ブラウザで `output/flow.html` を開いて確認できます。
+ブラウザで生成された `.html` ファイルを開いて確認できます。
 
 ### 3. Mermaid フローチャート生成
 
 ```bash
+# runs/構造のJSONを指定（info.mdに自動記録）
+python -m src.visualizers.mermaid_visualizer \
+  --json runs/20251110_123456_sample-small-01/output/flow.json \
+  --output runs/20251110_123456_sample-small-01/output/flow.mmd
+
+# 従来の出力先を指定
 python -m src.visualizers.mermaid_visualizer \
   --json output/flow.json \
   --output output/flow.mmd

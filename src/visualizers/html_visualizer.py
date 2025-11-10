@@ -370,10 +370,13 @@ def main() -> None:
                 break
 
         if run_dir and run_dir.exists() and (run_dir / "info.md").exists():
-            # 出力ファイル情報を追記
+            # 出力ファイル情報を追記（絶対パスに変換してから相対化）
+            html_abs = args.html.resolve()
+            svg_abs = args.svg.resolve()
+            run_dir_abs = run_dir.resolve()
             output_files = [
-                {"path": str(args.html.relative_to(run_dir)), "size": args.html.stat().st_size},
-                {"path": str(args.svg.relative_to(run_dir)), "size": args.svg.stat().st_size},
+                {"path": str(html_abs.relative_to(run_dir_abs)), "size": html_abs.stat().st_size},
+                {"path": str(svg_abs.relative_to(run_dir_abs)), "size": svg_abs.stat().st_size},
             ]
 
             # レビューチェックリストを作成

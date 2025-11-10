@@ -154,9 +154,11 @@ def main() -> None:
                 break
 
         if run_dir and run_dir.exists() and (run_dir / "info.md").exists():
-            # 出力ファイル情報を追記
+            # 出力ファイル情報を追記（絶対パスに変換してから相対化）
+            output_abs = args.output.resolve()
+            run_dir_abs = run_dir.resolve()
             output_files = [
-                {"path": str(args.output.relative_to(run_dir)), "size": args.output.stat().st_size},
+                {"path": str(output_abs.relative_to(run_dir_abs)), "size": output_abs.stat().st_size},
             ]
 
             run_manager.update_info_md(run_dir, {"output_files": output_files})

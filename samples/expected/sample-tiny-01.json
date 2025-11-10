@@ -1,0 +1,135 @@
+{
+  "actors": [
+    {
+      "id": "actor_sales",
+      "name": "営業部",
+      "type": "human"
+    },
+    {
+      "id": "actor_general_affairs",
+      "name": "総務部",
+      "type": "human"
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase_preparation",
+      "name": "申請準備フェーズ"
+    },
+    {
+      "id": "phase_approval",
+      "name": "承認フェーズ"
+    },
+    {
+      "id": "phase_execution",
+      "name": "購入実行フェーズ"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_confirm_needs",
+      "name": "備品ニーズ確認",
+      "actor_id": "actor_sales",
+      "phase_id": "phase_preparation",
+      "handoff_to": []
+    },
+    {
+      "id": "task_get_quote",
+      "name": "見積取得",
+      "actor_id": "actor_sales",
+      "phase_id": "phase_preparation",
+      "handoff_to": []
+    },
+    {
+      "id": "task_create_request",
+      "name": "申請書作成",
+      "actor_id": "actor_sales",
+      "phase_id": "phase_preparation",
+      "handoff_to": ["actor_sales"]
+    },
+    {
+      "id": "task_amount_judgment",
+      "name": "金額判定",
+      "actor_id": "actor_sales",
+      "phase_id": "phase_approval",
+      "handoff_to": [],
+      "systems": ["システム"]
+    },
+    {
+      "id": "task_manager_approval",
+      "name": "部長承認",
+      "actor_id": "actor_sales",
+      "phase_id": "phase_approval",
+      "handoff_to": ["actor_general_affairs"],
+      "notes": "10万円以上の場合のみ実施"
+    },
+    {
+      "id": "task_general_affairs_approval",
+      "name": "総務承認・発注",
+      "actor_id": "actor_general_affairs",
+      "phase_id": "phase_execution",
+      "handoff_to": []
+    },
+    {
+      "id": "task_delivery",
+      "name": "納品受領",
+      "actor_id": "actor_general_affairs",
+      "phase_id": "phase_execution",
+      "handoff_to": ["actor_sales"]
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow_1",
+      "from": "task_confirm_needs",
+      "to": "task_get_quote"
+    },
+    {
+      "id": "flow_2",
+      "from": "task_get_quote",
+      "to": "task_create_request"
+    },
+    {
+      "id": "flow_3",
+      "from": "task_create_request",
+      "to": "task_amount_judgment"
+    },
+    {
+      "id": "flow_4",
+      "from": "task_amount_judgment",
+      "to": "task_manager_approval",
+      "condition": "10万円以上"
+    },
+    {
+      "id": "flow_5",
+      "from": "task_amount_judgment",
+      "to": "task_general_affairs_approval",
+      "condition": "10万円未満"
+    },
+    {
+      "id": "flow_6",
+      "from": "task_manager_approval",
+      "to": "task_general_affairs_approval"
+    },
+    {
+      "id": "flow_7",
+      "from": "task_general_affairs_approval",
+      "to": "task_delivery"
+    }
+  ],
+  "gateways": [
+    {
+      "id": "gateway_amount",
+      "name": "10万円判定",
+      "type": "exclusive",
+      "notes": "購入金額が10万円以上か判定"
+    }
+  ],
+  "issues": [],
+  "metadata": {
+    "id": "sample-tiny-01",
+    "title": "備品購入申請フロー",
+    "source": "samples/input/sample-tiny-01.md",
+    "last_updated": "2025-11-10"
+  }
+}

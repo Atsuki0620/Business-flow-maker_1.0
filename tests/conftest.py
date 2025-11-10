@@ -16,6 +16,11 @@ LLM_RAW_SAMPLE_PATH = PROJECT_ROOT / "tests" / "data" / "llm_raw_sample.json"
 
 SAMPLE_CASES: Tuple[Tuple[str, Path, Path], ...] = (
     (
+        "tiny",
+        PROJECT_ROOT / "samples" / "input" / "sample-tiny-01.md",
+        PROJECT_ROOT / "samples" / "expected" / "sample-tiny-01.json",
+    ),
+    (
         "small",
         PROJECT_ROOT / "samples" / "input" / "sample-small-01.md",
         PROJECT_ROOT / "samples" / "expected" / "sample-small-01.json",

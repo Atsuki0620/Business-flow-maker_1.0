@@ -83,12 +83,12 @@ grep -n "^### \[v" CHANGELOG.md
 ```markdown
 # Business-flow-maker 計画書
 
-[最終更新日時] 2025年11月10日 13:06 JST
+[最終更新日時] 2025年11月10日 22:24 JST
 ```
 
 #### CHANGELOG.md バージョンエントリのテンプレート
 ```markdown
-### [v0.XX] - 2025-11-10 13:06 JST
+### [v0.XX] - 2025-11-10 22:24 JST
 
 #### 追加
 - 新機能の説明

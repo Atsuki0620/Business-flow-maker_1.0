@@ -67,18 +67,18 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-`.env` ファイルを編集して、LLM プロバイダと API キーを設定：
+`.env` ファイルを編集して、API キーを設定：
+
+**プロバイダは自動検出されます**（Azure OpenAI 優先）。いずれかの環境変数を設定してください。
 
 ```env
-# OpenAI を使用する場合
-LLM_PROVIDER=openai
-OPENAI_API_KEY=sk-***
-
-# Azure OpenAI を使用する場合
-LLM_PROVIDER=azure
+# Azure OpenAI を使用する場合（推奨）
 AZURE_OPENAI_API_KEY=***
 AZURE_OPENAI_ENDPOINT=https://<resource>.openai.azure.com
 AZURE_OPENAI_API_VERSION=2024-02-15-preview
+
+# OpenAI を使用する場合
+OPENAI_API_KEY=sk-***
 ```
 
 ---
@@ -152,29 +152,23 @@ python -m src.visualizers.mermaid_visualizer \
 
 ---
 
-## プロジェクト構成（移行中）
-
-現在、ディレクトリ構造を以下の形に移行中です：
+## プロジェクト構成
 
 ```
 Business-flow-maker_1.0/
 ├── src/
-│   ├── core/              # 将来: JSON生成、BPMN変換の中核機能
+│   ├── core/              # JSON生成、BPMN変換の中核機能
 │   │   ├── generator.py
 │   │   ├── llm_client.py
 │   │   └── bpmn_converter.py
-│   ├── visualizers/       # 将来: HTML/SVG、Mermaid生成
+│   ├── visualizers/       # HTML/SVG、Mermaid生成
 │   │   ├── html_visualizer.py
 │   │   └── mermaid_visualizer.py
-│   ├── utils/             # 将来: 実行履歴管理など
-│   │   └── run_manager.py
-│   ├── layer1/            # 現在: JSON生成
-│   ├── layer2/            # 現在: BPMN変換（未実装）
-│   └── export/            # 現在: 可視化
+│   └── utils/             # 実行履歴管理など
+│       └── run_manager.py
 ├── schemas/               # JSON Schema定義
 ├── samples/               # 入力・出力サンプル
-├── output/                # 生成物の保存先（将来 runs/ に移行）
-├── runs/                  # 将来: 実行履歴の自動管理
+├── runs/                  # 実行履歴の自動管理（初回実行時に自動生成）
 ├── tests/                 # pytestによる自動テスト
 ├── PLAN.md                # 開発計画書（詳細設計）
 ├── CHANGELOG.md           # 変更履歴

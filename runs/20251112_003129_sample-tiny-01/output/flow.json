@@ -1,0 +1,133 @@
+{
+  "actors": [
+    {
+      "id": "actor_sales",
+      "name": "営業部",
+      "type": "human"
+    },
+    {
+      "id": "actor_general_affairs",
+      "name": "総務部",
+      "type": "human"
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase_preparation",
+      "name": "申請準備フェーズ"
+    },
+    {
+      "id": "phase_approval",
+      "name": "承認フェーズ"
+    },
+    {
+      "id": "phase_execution",
+      "name": "購入実行フェーズ"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_confirm_needs",
+      "name": "備品ニーズ確認",
+      "actor_id": "actor_sales",
+      "phase_id": "phase_preparation",
+      "handoff_to": []
+    },
+    {
+      "id": "task_get_quote",
+      "name": "見積取得",
+      "actor_id": "actor_sales",
+      "phase_id": "phase_preparation",
+      "handoff_to": []
+    },
+    {
+      "id": "task_create_request",
+      "name": "申請書作成",
+      "actor_id": "actor_sales",
+      "phase_id": "phase_preparation",
+      "handoff_to": []
+    },
+    {
+      "id": "task_manager_approval",
+      "name": "部長承認",
+      "actor_id": "actor_sales",
+      "phase_id": "phase_approval",
+      "handoff_to": [],
+      "notes": "10万円以上の場合のみ実施"
+    },
+    {
+      "id": "task_general_affairs_approval",
+      "name": "総務承認・発注",
+      "actor_id": "actor_general_affairs",
+      "phase_id": "phase_execution",
+      "handoff_to": []
+    },
+    {
+      "id": "task_delivery",
+      "name": "納品受領",
+      "actor_id": "actor_general_affairs",
+      "phase_id": "phase_execution",
+      "handoff_to": [
+        "actor_sales"
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow_preparation_to_get_quote",
+      "from": "task_confirm_needs",
+      "to": "task_get_quote"
+    },
+    {
+      "id": "flow_get_quote_to_create_request",
+      "from": "task_get_quote",
+      "to": "task_create_request"
+    },
+    {
+      "id": "flow_create_request_to_gateway_amount",
+      "from": "task_create_request",
+      "to": "gateway_amount"
+    },
+    {
+      "id": "flow_gateway_amount_to_manager_approval",
+      "from": "gateway_amount",
+      "to": "task_manager_approval",
+      "condition": "金額が10万円以上"
+    },
+    {
+      "id": "flow_gateway_amount_to_general_affairs_approval",
+      "from": "gateway_amount",
+      "to": "task_general_affairs_approval",
+      "condition": "金額が10万円未満"
+    },
+    {
+      "id": "flow_manager_approval_to_general_affairs_approval",
+      "from": "task_manager_approval",
+      "to": "task_general_affairs_approval"
+    },
+    {
+      "id": "flow_general_affairs_approval_to_delivery",
+      "from": "task_general_affairs_approval",
+      "to": "task_delivery"
+    }
+  ],
+  "issues": [],
+  "gateways": [
+    {
+      "id": "gateway_amount",
+      "name": "金額判定",
+      "type": "exclusive",
+      "notes": "購入金額が10万円以上か判定"
+    }
+  ],
+  "metadata": {
+    "id": "sample-tiny-02",
+    "title": "備品購入申請フロー",
+    "source": "samples/input/sample-tiny-02.md",
+    "last_updated": "2025-11-10",
+    "generation": {
+      "model": "gpt-4o-mini",
+      "provider": "openai"
+    }
+  }
+}

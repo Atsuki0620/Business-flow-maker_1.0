@@ -6,10 +6,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 from xml.etree.ElementTree import Element, SubElement, tostring
+
+logger = logging.getLogger(__name__)
 
 
 LANE_HEIGHT = 140
@@ -253,6 +256,12 @@ def build_svg(flow: Dict[str, Any]) -> str:
         start = layout.get(link["from"])
         end = layout.get(link["to"])
         if not start or not end:
+            missing_ids = []
+            if not start:
+                missing_ids.append(f"from={link['from']}")
+            if not end:
+                missing_ids.append(f"to={link['to']}")
+            logger.warning(f"flow {link.get('id', 'unknown')} の参照エラー: {', '.join(missing_ids)} が存在しません。このflowをスキップします。")
             continue
         SubElement(
             svg,

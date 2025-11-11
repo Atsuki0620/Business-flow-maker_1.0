@@ -77,9 +77,7 @@ def test_detect_provider_prefers_azure(monkeypatch) -> None:
     monkeypatch.setattr(llm_builder, "_PROVIDER_CACHE", None, raising=False)
     monkeypatch.setattr(llm_builder, "_PROVIDER_ERRORS", [], raising=False)
     monkeypatch.setattr(llm_builder, "validate_azure_env", lambda: True)
-    monkeypatch.setattr(llm_builder, "test_azure_available", lambda: True)
     monkeypatch.setattr(llm_builder, "validate_openai_env", lambda: True)
-    monkeypatch.setattr(llm_builder, "test_openai_available", lambda: True)
 
     assert llm_builder.detect_provider() == "azure"
 
@@ -90,9 +88,7 @@ def test_detect_provider_handles_missing_env(monkeypatch) -> None:
     monkeypatch.setattr(llm_builder, "_PROVIDER_CACHE", None, raising=False)
     monkeypatch.setattr(llm_builder, "_PROVIDER_ERRORS", [], raising=False)
     monkeypatch.setattr(llm_builder, "validate_azure_env", lambda: False)
-    monkeypatch.setattr(llm_builder, "test_azure_available", lambda: False)
     monkeypatch.setattr(llm_builder, "validate_openai_env", lambda: False)
-    monkeypatch.setattr(llm_builder, "test_openai_available", lambda: False)
 
     assert llm_builder.detect_provider() is None
     assert llm_builder._PROVIDER_ERRORS  # type: ignore[attr-defined]
@@ -105,8 +101,8 @@ def test_generate_flow_records_generation_metadata(monkeypatch, tmp_path: Path, 
     monkeypatch.setattr(llm_builder, "_PROVIDER_ERRORS", [], raising=False)
 
     class FakeClient:
-        def structured_flow(self, *, prompt: str, schema: Dict[str, object], model: str) -> Dict[str, object]:
-            _ = prompt, schema, model
+        def structured_flow(self, *, messages: List[Dict[str, str]], schema: Dict[str, object], model: str) -> Dict[str, object]:
+            _ = messages, schema, model
             return {
                 "actors": [{"id": "actor_1", "name": "Sales"}],
                 "phases": [{"id": "phase_1", "name": "Plan"}],

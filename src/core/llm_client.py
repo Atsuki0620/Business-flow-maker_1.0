@@ -10,8 +10,11 @@ This module provides:
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import Any, Dict, List, Optional, Protocol
+
+logger = logging.getLogger(__name__)
 
 try:
     from dotenv import load_dotenv  # type: ignore
@@ -31,7 +34,7 @@ except ImportError:  # pragma: no cover - optional dependency
 class LLMClient(Protocol):
     """Interface for LLM backends."""
 
-    def structured_flow(self, *, prompt: str, schema: Dict[str, Any], model: str) -> Dict[str, Any]:
+    def structured_flow(self, *, messages: List[Dict[str, str]], schema: Dict[str, Any], model: str) -> Dict[str, Any]:
         """Return a JSON document that satisfies the given schema."""
 
 
@@ -42,7 +45,7 @@ def cleanup_dummy_proxies() -> None:
         value = os.getenv(key)
         if value and is_dummy_value(value):
             os.environ.pop(key, None)
-            print(f"[layer1] {key} はダミー値のため無効化しました。")
+            logger.warning(f"{key} はダミー値のため無効化しました。")
 
 
 def is_dummy_value(value: str) -> bool:
@@ -65,10 +68,10 @@ def validate_openai_env() -> bool:
 
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
-        print("[layer1] OpenAI: OPENAI_API_KEY が未設定です。")
+        logger.info("OpenAI: OPENAI_API_KEY が未設定です。")
         return False
     if is_dummy_value(api_key):
-        print("[layer1] OpenAI: OPENAI_API_KEY がダミー値のため利用できません。")
+        logger.warning("OpenAI: OPENAI_API_KEY がダミー値のため利用できません。")
         return False
     return True
 
@@ -89,47 +92,13 @@ def validate_azure_env() -> bool:
         missing.append("AZURE_OPENAI_ENDPOINT")
 
     if missing:
-        print(f"[layer1] AzureOpenAI: {', '.join(missing)} が未設定です。")
+        logger.info(f"AzureOpenAI: {', '.join(missing)} が未設定です。")
         return False
 
     if any(is_dummy_value(value) for value in (api_key, api_version, endpoint)):
-        print("[layer1] AzureOpenAI: 必須環境変数にダミー値が含まれています。")
+        logger.warning("AzureOpenAI: 必須環境変数にダミー値が含まれています。")
         return False
 
-    return True
-
-
-def test_openai_available() -> bool:
-    """OpenAI SDKの初期化テスト（軽量、API呼び出しなし）"""
-
-    if OpenAI is None:
-        print("[layer1] OpenAI SDK がインストールされていません。`pip install openai` を実行してください。")
-        return False
-
-    try:
-        OpenAI()
-    except Exception as exc:  # pragma: no cover - SDK内部の例外をそのまま通知
-        print(f"[layer1] OpenAI クライアント初期化に失敗しました: {exc}")
-        return False
-    return True
-
-
-def test_azure_available() -> bool:
-    """AzureOpenAI SDKの初期化テスト（軽量、API呼び出しなし）"""
-
-    if AzureOpenAI is None:
-        print("[layer1] AzureOpenAI 用の openai SDK がインストールされていません。`pip install openai` を実行してください。")
-        return False
-
-    try:
-        AzureOpenAI(
-            api_key=os.environ["AZURE_OPENAI_API_KEY"],
-            api_version=os.environ["AZURE_OPENAI_API_VERSION"],
-            azure_endpoint=os.environ["AZURE_OPENAI_ENDPOINT"],
-        )
-    except Exception as exc:  # pragma: no cover - SDK内部の例外をそのまま通知
-        print(f"[layer1] AzureOpenAI クライアント初期化に失敗しました: {exc}")
-        return False
     return True
 
 
@@ -139,8 +108,9 @@ _PROVIDER_ERRORS: List[str] = []
 
 def detect_provider() -> Optional[str]:
     """
-    "azure" | "openai" | None を返す
+    "azure" | "openai" | None を返す（環境変数チェックのみ）
     Azure優先、標準出力にログ出力
+    SDK初期化は create_llm_client() 内で実施
     """
 
     global _PROVIDER_CACHE, _PROVIDER_ERRORS
@@ -151,32 +121,30 @@ def detect_provider() -> Optional[str]:
     errors: List[str] = []
     cleanup_dummy_proxies()
 
+    # Azure環境変数のチェック
     if validate_azure_env():
-        if test_azure_available():
-            print("[layer1] Azure OpenAI を使用します。")
-            _PROVIDER_CACHE = "azure"
-            _PROVIDER_ERRORS = []
-            return _PROVIDER_CACHE
-        errors.append("AzureOpenAI: SDK 初期化に失敗しました。")
+        logger.info("Azure OpenAI を使用します。")
+        _PROVIDER_CACHE = "azure"
+        _PROVIDER_ERRORS = []
+        return _PROVIDER_CACHE
     else:
         errors.append("AzureOpenAI: 必須環境変数(AZURE_OPENAI_API_KEY, AZURE_OPENAI_API_VERSION, AZURE_OPENAI_ENDPOINT)を正しく設定してください。")
 
+    # OpenAI環境変数のチェック
     if validate_openai_env():
-        if test_openai_available():
-            print("[layer1] OpenAI API を使用します。")
-            _PROVIDER_CACHE = "openai"
-            _PROVIDER_ERRORS = []
-            return _PROVIDER_CACHE
-        errors.append("OpenAI: SDK 初期化に失敗しました。")
+        logger.info("OpenAI API を使用します。")
+        _PROVIDER_CACHE = "openai"
+        _PROVIDER_ERRORS = []
+        return _PROVIDER_CACHE
     else:
         errors.append("OpenAI: OPENAI_API_KEY が未設定かダミー値です。")
 
     _PROVIDER_CACHE = None
     _PROVIDER_ERRORS = errors
 
-    print("[layer1] 有効な LLM プロバイダを検出できませんでした。")
+    logger.error("有効な LLM プロバイダを検出できませんでした。")
     for message in errors:
-        print(f" - {message}")
+        logger.error(f" - {message}")
 
     return None
 
@@ -195,33 +163,60 @@ def _extract_json_payload(text: str) -> str:
 
 
 class OpenAILLMClient:
-    """OpenAI Responses API wrapper that requests JSON-schema constrained output."""
+    """OpenAI Chat Completions API wrapper that requests JSON-schema constrained output."""
 
     def __init__(self) -> None:
         if OpenAI is None:
             raise ImportError("openai SDK is not installed. Run `pip install openai`.")
         self._client = OpenAI()
 
-    def structured_flow(self, *, prompt: str, schema: Dict[str, Any], model: str) -> Dict[str, Any]:
-        request_kwargs = {
-            "model": model,
-            "input": prompt,
-        }
+    def structured_flow(self, *, messages: List[Dict[str, str]], schema: Dict[str, Any], model: str) -> Dict[str, Any]:
+        """LLM APIを呼び出してJSON形式のフローを生成する。
+
+        Args:
+            messages: チャットメッセージリスト（system, user, assistantロール）
+            schema: JSON Schema（辞書形式）
+            model: モデル名
+
+        Returns:
+            パース済みのJSON辞書
+
+        Raises:
+            RuntimeError: API呼び出しまたはJSONパースに失敗した場合
+            ValueError: レスポンスが空の場合
+        """
+        logger.debug(f"LLMリクエスト: model={model}, messages={str(messages)[:500]}...")
+
         try:
-            response = self._client.responses.create(
+            response = self._client.chat.completions.create(
+                model=model,
+                messages=messages,
                 response_format={"type": "json_schema", "json_schema": {"name": "FlowSchema", "schema": schema}},
-                **request_kwargs,
             )
-        except TypeError:
-            # Older openai SDKs (< 1.43) do not support response_format.
-            response = self._client.responses.create(**request_kwargs)
-        content = response.output[0].content[0].text if response.output else "{}"
+        except Exception as exc:
+            logger.error(f"OpenAI API呼び出しに失敗しました: {exc}")
+            raise RuntimeError(f"OpenAI API呼び出しに失敗しました: {exc}") from exc
+
+        # レスポンスの取得
+        if not response.choices or not response.choices[0].message.content:
+            logger.error("LLMからのレスポンスが空です。")
+            raise ValueError("LLMからのレスポンスが空です。")
+
+        content = response.choices[0].message.content
+        logger.debug(f"LLMレスポンス: {content[:500]}...")
         payload = _extract_json_payload(content)
-        return json.loads(payload)
+
+        try:
+            result = json.loads(payload)
+            logger.debug(f"JSONパース成功: {len(payload)} bytes")
+            return result
+        except json.JSONDecodeError as exc:
+            logger.error(f"JSONのパースに失敗しました。レスポンス内容: {payload[:200]}...")
+            raise RuntimeError(f"JSONのパースに失敗しました。レスポンス内容: {payload[:200]}...") from exc
 
 
 class AzureOpenAILLMClient:
-    """AzureOpenAI用クライアント（LLMClient Protocolに準拠）"""
+    """AzureOpenAI Chat Completions API用クライアント（LLMClient Protocolに準拠）"""
 
     def __init__(self) -> None:
         if AzureOpenAI is None:
@@ -233,18 +228,49 @@ class AzureOpenAILLMClient:
 
         self._client = AzureOpenAI(api_key=api_key, api_version=api_version, azure_endpoint=endpoint)
 
-    def structured_flow(self, *, prompt: str, schema: Dict[str, Any], model: str) -> Dict[str, Any]:
-        request_kwargs = {
-            "model": model,
-            "input": prompt,
-        }
-        response = self._client.responses.create(
-            response_format={"type": "json_schema", "json_schema": {"name": "FlowSchema", "schema": schema}},
-            **request_kwargs,
-        )
-        content = response.output[0].content[0].text if response.output else "{}"
+    def structured_flow(self, *, messages: List[Dict[str, str]], schema: Dict[str, Any], model: str) -> Dict[str, Any]:
+        """LLM APIを呼び出してJSON形式のフローを生成する。
+
+        Args:
+            messages: チャットメッセージリスト（system, user, assistantロール）
+            schema: JSON Schema（辞書形式）
+            model: モデル名
+
+        Returns:
+            パース済みのJSON辞書
+
+        Raises:
+            RuntimeError: API呼び出しまたはJSONパースに失敗した場合
+            ValueError: レスポンスが空の場合
+        """
+        logger.debug(f"LLMリクエスト: model={model}, messages={str(messages)[:500]}...")
+
+        try:
+            response = self._client.chat.completions.create(
+                model=model,
+                messages=messages,
+                response_format={"type": "json_schema", "json_schema": {"name": "FlowSchema", "schema": schema}},
+            )
+        except Exception as exc:
+            logger.error(f"Azure OpenAI API呼び出しに失敗しました: {exc}")
+            raise RuntimeError(f"Azure OpenAI API呼び出しに失敗しました: {exc}") from exc
+
+        # レスポンスの取得
+        if not response.choices or not response.choices[0].message.content:
+            logger.error("LLMからのレスポンスが空です。")
+            raise ValueError("LLMからのレスポンスが空です。")
+
+        content = response.choices[0].message.content
+        logger.debug(f"LLMレスポンス: {content[:500]}...")
         payload = _extract_json_payload(content)
-        return json.loads(payload)
+
+        try:
+            result = json.loads(payload)
+            logger.debug(f"JSONパース成功: {len(payload)} bytes")
+            return result
+        except json.JSONDecodeError as exc:
+            logger.error(f"JSONのパースに失敗しました。レスポンス内容: {payload[:200]}...")
+            raise RuntimeError(f"JSONのパースに失敗しました。レスポンス内容: {payload[:200]}...") from exc
 
 
 def create_llm_client() -> LLMClient:

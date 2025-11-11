@@ -105,6 +105,12 @@ python -m src.core.generator \
 python -m src.core.generator \
   --input samples/input/sample-medium-01.md \
   --model gpt-4o-mini
+
+# DEBUGログを有効化（LLMリクエスト・レスポンス全文を表示）
+python -m src.core.generator \
+  --input samples/input/sample-medium-01.md \
+  --model gpt-4o-mini \
+  --debug
 ```
 
 **runs/構造について**:

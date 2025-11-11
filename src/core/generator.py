@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import pathlib
 import re
 from dataclasses import asdict, dataclass
@@ -19,6 +20,8 @@ from datetime import date
 from typing import Any, Dict, List, Optional
 
 from src.core.llm_client import LLMClient, create_llm_client, detect_provider
+
+logger = logging.getLogger(__name__)
 
 try:
     import jsonschema  # type: ignore
@@ -48,8 +51,8 @@ class DummyLLMClient:
     def __init__(self, stub_path: pathlib.Path) -> None:
         self._stub_path = stub_path
 
-    def structured_flow(self, *, prompt: str, schema: Dict[str, Any], model: str) -> Dict[str, Any]:
-        _ = prompt, schema, model
+    def structured_flow(self, *, messages: List[Dict[str, str]], schema: Dict[str, Any], model: str) -> Dict[str, Any]:
+        _ = messages, schema, model
         return json.loads(self._stub_path.read_text(encoding="utf-8"))
 
 
@@ -57,23 +60,51 @@ def load_schema(schema_path: pathlib.Path) -> Dict[str, Any]:
     return json.loads(schema_path.read_text(encoding="utf-8"))
 
 
-def build_prompt(input_text: str) -> str:
-    base = (
-        "あなたは業務フローアーキテクトです。以下の入力を読み、"
-        "actors / phases / tasks / flows / gateways / issues / metadata を含む JSON を生成してください。\n"
-        f"--- INPUT START ---\n{input_text}\n--- INPUT END ---\n\n"
+def build_messages(input_text: str) -> List[Dict[str, str]]:
+    """Few-shot examplesを含むメッセージリストを構築する。
+
+    Args:
+        input_text: ユーザー入力テキスト
+
+    Returns:
+        messagesリスト（system, user, assistant, userロール）
+    """
+    # システムプロンプト
+    system_prompt = (
+        "あなたは業務フローアーキテクトです。\n"
+        "業務文書を読み、actors / phases / tasks / flows / gateways / issues / metadata を含む JSON を生成してください。\n\n"
         "必須ルール:\n"
-        "1. JSON Schema に準拠し、snake_case キーを維持する。\n"
-        "2. 曖昧または不明な情報は issues[].note に記録し、UNKNOWN として扱わず含める。\n"
-        "3. flows[].condition は必要な場合のみ記載する。\n"
-        "4. tasks[].handoff_to は空配列でも必ず含める。\n"
+        "1. JSON Schema に準拠し、snake_case キーを維持する\n"
+        "2. tasks と flows の ID は対応させる（flows[].from/to は必ず tasks[].id または gateways[].id を参照）\n"
+        "3. 曖昧または不明な情報は issues[].note に記録する\n"
+        "4. flows[].condition は分岐がある場合のみ記載する\n"
+        "5. tasks[].handoff_to は空配列でも必ず含める\n"
+        "6. 出力は純粋な JSON（```マークダウンブロックは不要）\n"
     )
-    extras = (
-        "5. actors[].id とタスク[].actor_id は全てのアクターIDを使用する。\n"
-        "6. metadata は、id/title/source/last_updated のみを利用する。\n"
-        "7. 出力は ``` などを含まないで純粋なJSONを返す。\n"
-    )
-    return base + extras
+
+    # Few-shot example（sample-tiny-01）を読み込む
+    try:
+        example_input_path = pathlib.Path("samples/input/sample-tiny-01.md")
+        example_output_path = pathlib.Path("samples/expected/sample-tiny-01.json")
+
+        example_input = example_input_path.read_text(encoding="utf-8")
+        example_output = example_output_path.read_text(encoding="utf-8")
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"以下の業務文書からフローJSONを生成してください:\n\n{example_input}"},
+            {"role": "assistant", "content": example_output},
+            {"role": "user", "content": f"以下の業務文書からフローJSONを生成してください:\n\n{input_text}"}
+        ]
+    except FileNotFoundError:
+        # Few-shot exampleが見つからない場合はシステムプロンプトとユーザー入力のみ
+        logger.warning("Few-shot exampleファイルが見つかりません。システムプロンプトのみ使用します。")
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"以下の業務文書からフローJSONを生成してください:\n\n{input_text}"}
+        ]
+
+    return messages
 
 
 
@@ -120,9 +151,6 @@ def normalize_flow_document(raw: dict) -> dict:
         actors.append(filtered)
         actor_lookup[name] = actor_id
         actor_lookup[actor_id] = actor_id
-    if not actors:
-        actors = [{"id": "actor_1", "name": "unspecified", "type": "human"}]
-        actor_lookup["unspecified"] = "actor_1"
     data["actors"] = actors
 
     phases = []
@@ -136,9 +164,6 @@ def normalize_flow_document(raw: dict) -> dict:
         phases.append(filtered)
         phase_lookup[name] = phase_id
         phase_lookup[phase_id] = phase_id
-    if not phases:
-        phases = [{"id": "phase_1", "name": "unknown"}]
-        phase_lookup["unknown"] = "phase_1"
     data["phases"] = phases
 
     tasks = []
@@ -166,8 +191,6 @@ def normalize_flow_document(raw: dict) -> dict:
         if "notes" in task:
             entry["notes"] = task["notes"]
         tasks.append(entry)
-    if not tasks:
-        tasks = [{"id": "task_1", "name": "unknown", "actor_id": actors[0]["id"], "phase_id": phases[0]["id"], "handoff_to": []}]
     data["tasks"] = tasks
 
     flows = []
@@ -184,8 +207,6 @@ def normalize_flow_document(raw: dict) -> dict:
             entry["notes"] = flow["notes"]
         flows.append(entry)
     flows = [f for f in flows if f["from"] and f["to"]]
-    if not flows:
-        flows = [{"id": "flow_1", "from": tasks[0]["id"], "to": tasks[-1]["id"]}]
     data["flows"] = flows
 
     gateways = []
@@ -256,7 +277,7 @@ def generate_flow(
 ) -> FlowDocument:
     schema = load_schema(schema_path)
     input_text = input_path.read_text(encoding="utf-8")
-    prompt = build_prompt(input_text)
+    messages = build_messages(input_text)
 
     if use_stub:
         client: LLMClient = DummyLLMClient(use_stub)
@@ -265,7 +286,7 @@ def generate_flow(
 
     provider = detect_provider() if not use_stub else None
 
-    raw = client.structured_flow(prompt=prompt, schema=schema, model=model)
+    raw = client.structured_flow(messages=messages, schema=schema, model=model)
     raw = normalize_flow_document(raw)
     if provider:
         metadata = raw.setdefault("metadata", {})
@@ -283,10 +304,11 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate Layer1 flow JSON via LLM.")
     parser.add_argument("--input", type=pathlib.Path, required=True, help="入力テキストファイル")
     parser.add_argument("--schema", type=pathlib.Path, default=pathlib.Path("schemas/flow.schema.json"))
-    parser.add_argument("--model", type=str, default="gpt-4.1-mini")
+    parser.add_argument("--model", type=str, default="gpt-4o-mini")
     parser.add_argument("--output", type=pathlib.Path, default=None, help="出力先（省略時は runs/ 配下に自動生成）")
     parser.add_argument("--stub", type=pathlib.Path, help="LLM を呼ばずサンプル JSON を読み込む場合に指定")
     parser.add_argument("--skip-validation", action="store_true")
+    parser.add_argument("--debug", action="store_true", help="DEBUGレベルのログを出力")
     return parser.parse_args()
 
 
@@ -296,6 +318,15 @@ def main() -> None:
     from src.utils import run_manager
 
     args = parse_args()
+
+    # ログレベル設定
+    log_level = logging.DEBUG if args.debug else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
     start_time = time.time()
 
     # 出力先の決定
@@ -322,7 +353,7 @@ def main() -> None:
     save_output(document, output_path)
 
     elapsed_time = time.time() - start_time
-    print(f"[layer1] flow JSON を {output_path} に保存しました。")
+    logger.info(f"flow JSON を {output_path} に保存しました。")
 
     # runs/構造を使用した場合は info.md を生成
     if use_runs and run_dir:
@@ -363,7 +394,7 @@ def main() -> None:
         }
         run_manager.update_info_md(run_dir, {"json_validation": validation})
 
-        print(f"[layer1] 実行情報を {run_dir / 'info.md'} に記録しました。")
+        logger.info(f"実行情報を {run_dir / 'info.md'} に記録しました。")
 
 
 if __name__ == "__main__":

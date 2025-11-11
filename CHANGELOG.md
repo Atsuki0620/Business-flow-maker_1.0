@@ -1,6 +1,6 @@
 # CHANGELOG
 
-[最終更新日時] 2025年11月10日 22:24 JST
+[最終更新日時] 2025年11月11日 09:30 JST
 
 本ファイルは Business-flow-maker プロジェクトの全ての重要な変更を記録します。
 
@@ -187,6 +187,54 @@
 - §2.1: 実装構造を src/core/, src/visualizers/, src/utils/ に更新
 - §3.1: MVP完了項目に runs/ 構造と自動検出を追加
 - §7: 運用フローを runs/ 構造ベースに全面改訂
+
+---
+
+### [v0.37] - 2025-11-11 09:30 JST
+
+#### 修正（重大）
+- **OpenAI SDK API の使用方法を修正**
+  - `client.responses.create()` → `client.chat.completions.create()` に変更
+  - パラメータを修正：`input` → `messages=[{"role": "user", "content": prompt}]`
+  - レスポンス取得を修正：`response.output[0].content[0].text` → `response.choices[0].message.content`
+  - OpenAI SDK の正しい Chat Completions API を使用するように修正
+- **デフォルトモデル名を修正**
+  - `gpt-4.1-mini` → `gpt-4o-mini` に変更（存在しないモデル名の修正）
+- **プロバイダ検出ロジックを簡素化**
+  - `test_openai_available()` と `test_azure_available()` 関数を削除
+  - `detect_provider()` を環境変数チェックとダミー値判定のみに簡素化
+  - SDK初期化は `create_llm_client()` 内で実施（初期化失敗時は明確なエラーメッセージ）
+
+#### 追加
+- **構造化ロギング導入**
+  - `logging` モジュールを `llm_client.py`, `generator.py`, `html_visualizer.py` に導入
+  - INFO/WARNING/ERROR/DEBUGレベルのログ出力
+  - `--debug` フラグ追加で DEBUGレベルのログを表示（LLMリクエスト・レスポンス全文）
+- **プロンプト改善（Few-shot examples）**
+  - `build_messages()` 関数を新設（`build_prompt()` から変更）
+  - システムプロンプトを分離（業務フローアーキテクトとしての役割明示）
+  - Few-shot example 追加（`sample-tiny-01.md` → `sample-tiny-01.json`）
+  - messagesリスト形式でLLM APIに渡すように変更
+- **基本的なエラーハンドリング**
+  - `structured_flow()` メソッドに try-catch を追加
+  - API呼び出し失敗時に `RuntimeError` で明確なエラーメッセージを表示
+  - レスポンスが空の場合に `ValueError` で通知
+  - JSONパース失敗時に元のレスポンス内容を含めてエラー通知
+- **可視化でのエラーハンドリング**
+  - `html_visualizer.py` で存在しないIDへのflow参照を検出
+  - ワーニングログを出力してflowをスキップ（処理は続行）
+
+#### 変更
+- **normalize_flow_document() の簡素化**
+  - ダミーデータ自動挿入を廃止（actors/phases/tasks/flowsが0件でもダミー挿入しない）
+  - LLMが生成したデータをそのまま正規化（ID生成、データ型正規化、必須フィールド補完のみ実施）
+  - 参照整合性チェックは削除（LLMとプロンプトに委譲）
+
+#### 削除
+- **厳密検証モードの計画を撤回**
+  - LLMのJSON Schema制約と改善されたプロンプトで品質を担保
+- **参照整合性の自動チェック機能の計画を撤回**
+  - Few-shot examplesとシステムプロンプトで参照整合性を指示
 
 ---
 

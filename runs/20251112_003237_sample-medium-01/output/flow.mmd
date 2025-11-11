@@ -1,0 +1,20 @@
+```mermaid
+flowchart TD
+
+    task_account_setup["アカウント発行"]
+    task_equipment_procurement["備品調達"]
+    task_training_plan["研修計画"]
+    task_initial_training["初期研修"]
+    task_30_day_review["30日レビュー"]
+    task_feedback_collection["フィードバック収集"]
+    task_performance_check["業務パフォーマンス確認"]
+    task_documentation_update["ドキュメント更新"]
+
+    task_account_setup --> task_equipment_procurement
+    task_equipment_procurement --> task_training_plan
+    task_training_plan --> task_initial_training
+    task_initial_training --> task_30_day_review
+    task_30_day_review --> task_feedback_collection
+    task_feedback_collection --> task_performance_check
+    task_performance_check --> task_documentation_update
+```

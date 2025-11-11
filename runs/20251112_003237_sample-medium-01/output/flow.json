@@ -1,0 +1,161 @@
+{
+  "actors": [
+    {
+      "id": "actor_hrbp",
+      "name": "HRBP",
+      "type": "human"
+    },
+    {
+      "id": "actor_it",
+      "name": "情シス",
+      "type": "human"
+    },
+    {
+      "id": "actor_mentor",
+      "name": "メンター",
+      "type": "human"
+    },
+    {
+      "id": "actor_new_employee",
+      "name": "入社者",
+      "type": "human"
+    }
+  ],
+  "phases": [
+    {
+      "id": "phase_pre_onboarding",
+      "name": "入社前準備"
+    },
+    {
+      "id": "phase_first_week",
+      "name": "初週サポート"
+    },
+    {
+      "id": "phase_follow_up",
+      "name": "30日フォロー"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_account_setup",
+      "name": "アカウント発行",
+      "actor_id": "actor_it",
+      "phase_id": "phase_pre_onboarding",
+      "handoff_to": [
+        "actor_new_employee"
+      ]
+    },
+    {
+      "id": "task_equipment_procurement",
+      "name": "備品調達",
+      "actor_id": "actor_it",
+      "phase_id": "phase_pre_onboarding",
+      "handoff_to": [
+        "actor_new_employee"
+      ]
+    },
+    {
+      "id": "task_training_plan",
+      "name": "研修計画",
+      "actor_id": "actor_hrbp",
+      "phase_id": "phase_first_week",
+      "handoff_to": [
+        "actor_new_employee"
+      ]
+    },
+    {
+      "id": "task_initial_training",
+      "name": "初期研修",
+      "actor_id": "actor_mentor",
+      "phase_id": "phase_first_week",
+      "handoff_to": [
+        "actor_new_employee"
+      ]
+    },
+    {
+      "id": "task_30_day_review",
+      "name": "30日レビュー",
+      "actor_id": "actor_mentor",
+      "phase_id": "phase_follow_up",
+      "handoff_to": []
+    },
+    {
+      "id": "task_feedback_collection",
+      "name": "フィードバック収集",
+      "actor_id": "actor_hrbp",
+      "phase_id": "phase_follow_up",
+      "handoff_to": []
+    },
+    {
+      "id": "task_performance_check",
+      "name": "業務パフォーマンス確認",
+      "actor_id": "actor_mentor",
+      "phase_id": "phase_follow_up",
+      "handoff_to": []
+    },
+    {
+      "id": "task_documentation_update",
+      "name": "ドキュメント更新",
+      "actor_id": "actor_it",
+      "phase_id": "phase_follow_up",
+      "handoff_to": [
+        "actor_hrbp"
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow_1",
+      "from": "task_account_setup",
+      "to": "task_equipment_procurement"
+    },
+    {
+      "id": "flow_2",
+      "from": "task_equipment_procurement",
+      "to": "task_training_plan"
+    },
+    {
+      "id": "flow_3",
+      "from": "task_training_plan",
+      "to": "task_initial_training"
+    },
+    {
+      "id": "flow_4",
+      "from": "task_initial_training",
+      "to": "task_30_day_review"
+    },
+    {
+      "id": "flow_5",
+      "from": "task_30_day_review",
+      "to": "task_feedback_collection"
+    },
+    {
+      "id": "flow_6",
+      "from": "task_feedback_collection",
+      "to": "task_performance_check"
+    },
+    {
+      "id": "flow_7",
+      "from": "task_performance_check",
+      "to": "task_documentation_update"
+    }
+  ],
+  "issues": [
+    {
+      "id": "issue_1",
+      "note": "メンターによる追加タスクの差分記録ルールが未整備。",
+      "severity": "warning"
+    }
+  ],
+  "gateways": [],
+  "metadata": {
+    "id": "sample-medium-02",
+    "title": "新卒オンボーディング",
+    "source": "samples/input/sample-medium-02.md",
+    "last_updated": "2025-11-10",
+    "generation": {
+      "model": "gpt-4o-mini",
+      "provider": "openai"
+    }
+  }
+}

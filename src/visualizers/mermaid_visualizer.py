@@ -49,12 +49,21 @@ def generate_mermaid(flow_data: Dict[str, Any]) -> str:
         lines.append(f'    {task_id}["{task_name}"]')
 
     # ゲートウェイノードを定義（ひし形）
+    # フローに接続されているゲートウェイのみ定義（孤立ゲートウェイを除外）
+    flows = flow_data.get("flows", [])
+    gateway_ids_in_flows = set()
+    for flow in flows:
+        gateway_ids_in_flows.add(flow.get("from", ""))
+        gateway_ids_in_flows.add(flow.get("to", ""))
+
     gateways = flow_data.get("gateways", [])
     for gateway in gateways:
         gw_id = gateway["id"]
-        gw_name = sanitize_label(gateway["name"])
-        # ひし形でゲートウェイを表現
-        lines.append(f'    {gw_id}{{"{gw_name}"}}')
+        # フローに接続されているゲートウェイのみ定義
+        if gw_id in gateway_ids_in_flows:
+            gw_name = sanitize_label(gateway["name"])
+            # ひし形でゲートウェイを表現
+            lines.append(f'    {gw_id}{{"{gw_name}"}}')
 
     if tasks or gateways:
         lines.append("")

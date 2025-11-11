@@ -45,15 +45,7 @@
       "name": "申請書作成",
       "actor_id": "actor_sales",
       "phase_id": "phase_preparation",
-      "handoff_to": ["actor_sales"]
-    },
-    {
-      "id": "task_amount_judgment",
-      "name": "金額判定",
-      "actor_id": "actor_sales",
-      "phase_id": "phase_approval",
-      "handoff_to": [],
-      "systems": ["システム"]
+      "handoff_to": []
     },
     {
       "id": "task_manager_approval",
@@ -92,17 +84,17 @@
     {
       "id": "flow_3",
       "from": "task_create_request",
-      "to": "task_amount_judgment"
+      "to": "gateway_amount"
     },
     {
       "id": "flow_4",
-      "from": "task_amount_judgment",
+      "from": "gateway_amount",
       "to": "task_manager_approval",
       "condition": "10万円以上"
     },
     {
       "id": "flow_5",
-      "from": "task_amount_judgment",
+      "from": "gateway_amount",
       "to": "task_general_affairs_approval",
       "condition": "10万円未満"
     },

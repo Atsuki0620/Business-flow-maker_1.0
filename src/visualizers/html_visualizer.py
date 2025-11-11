@@ -81,12 +81,36 @@ def build_layout(flow: Dict[str, Any]) -> Dict[str, NodeLayout]:
     actor_order, phase_order = determine_orders(flow)
     positions: Dict[str, NodeLayout] = {}
 
+    # First pass: Count tasks per (actor_id, phase_id) combination
+    group_counts: Dict[Tuple[str, str], int] = {}
     for task in flow.get("tasks", []):
-        actor_idx = actor_order.get(task.get("actor_id", ""), 0)
-        phase_idx = phase_order.get(task.get("phase_id", ""), 0)
+        group_key = (task.get("actor_id", ""), task.get("phase_id", ""))
+        group_counts[group_key] = group_counts.get(group_key, 0) + 1
+
+    # Second pass: Assign positions with vertical offset to avoid overlapping
+    task_counters: Dict[Tuple[str, str], int] = {}
+    for task in flow.get("tasks", []):
+        actor_id = task.get("actor_id", "")
+        phase_id = task.get("phase_id", "")
+        actor_idx = actor_order.get(actor_id, 0)
+        phase_idx = phase_order.get(phase_id, 0)
+
+        # Get task order within this (actor, phase) group
+        group_key = (actor_id, phase_id)
+        task_order = task_counters.get(group_key, 0)
+        task_counters[group_key] = task_order + 1
+        total_tasks = group_counts[group_key]
+
         lane_top = MARGIN_Y + actor_idx * LANE_HEIGHT
         x = MARGIN_X + LANE_HEADER_WIDTH + phase_idx * (TASK_WIDTH + COLUMN_GAP)
-        y = lane_top + (LANE_HEIGHT - TASK_HEIGHT) / 2
+
+        # Calculate Y position with vertical offset
+        # Center the group of tasks vertically within the lane
+        y_base = lane_top + (LANE_HEIGHT - TASK_HEIGHT) / 2
+        y_offset = task_order * (TASK_HEIGHT + 10)  # 10px gap between tasks
+        y_center_adjustment = (total_tasks - 1) * (TASK_HEIGHT + 10) / 2
+        y = y_base + y_offset - y_center_adjustment
+
         positions[task["id"]] = NodeLayout(
             node_id=task["id"],
             label=task["name"],

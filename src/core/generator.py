@@ -80,6 +80,12 @@ def build_messages(input_text: str) -> List[Dict[str, str]]:
         "4. flows[].condition は分岐がある場合のみ記載する\n"
         "5. tasks[].handoff_to は空配列でも必ず含める\n"
         "6. 出力は純粋な JSON（```マークダウンブロックは不要）\n"
+        "7. ゲートウェイ (gateways) の使用ルール:\n"
+        "   - 判定・分岐処理はタスクではなくゲートウェイとして表現する\n"
+        "   - ゲートウェイとタスクを重複させない（例: 「金額判定」はゲートウェイのみで、タスクとしては定義しない）\n"
+        "   - ゲートウェイの type は exclusive（排他的・1つ選択）/ parallel（並行・すべて実行）/ inclusive（包含的・複数選択可）から選択\n"
+        "   - ゲートウェイには必ず2つ以上の出力フローが必要（flows[].from にゲートウェイIDを指定）\n"
+        "   - システムによる自動判定処理はゲートウェイとして表現する\n"
     )
 
     # Few-shot example（sample-tiny-01）を読み込む

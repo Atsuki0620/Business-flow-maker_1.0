@@ -186,6 +186,7 @@ Business-flow-maker_1.0/
 
 ## 詳細ドキュメント
 
+- **[CONCEPTS.md](docs/CONCEPTS.md)**: データモデル概念定義（タスク/ゲートウェイの使い分け、BPMN 2.0準拠ガイド）
 - **[PLAN.md](PLAN.md)**: 開発計画書（アーキテクチャ、スコープ、実装ステップ）
 - **[CHANGELOG.md](CHANGELOG.md)**: 改訂履歴とバージョン管理
 - **[AGENTS.md](AGENTS.md)**: 開発者向けガイドライン（コーディング規約、テスト指針）

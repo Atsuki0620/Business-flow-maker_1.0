@@ -9,7 +9,7 @@
 - マニュアルや業務文書から業務フローの独自JSON（actors/phases/tasks/flows/issues）を生成
 - HTML+SVG による泳線図（Swimlane）の可視化
 - Mermaid フローチャート形式への変換
-- BPMN 2.0 XML への変換（将来実装）
+- **BPMN 2.0 XML への変換**（Layer2: v0.40で実装）
 - JSON Schema による厳格な検証とレビューチェックリスト自動生成
 
 ### 対象ユーザー
@@ -155,6 +155,44 @@ python -m src.visualizers.mermaid_visualizer \
 ```
 
 生成された `flow.mmd` は Mermaid 対応エディタやブラウザ拡張で表示できます。
+
+### 4. BPMN 2.0 XML 変換（Layer2）
+
+JSON業務フローデータをBPMN 2.0標準XML形式に変換します。生成されたBPMNファイルは、Camunda Modeler、bpmn.io、その他のBPMN準拠ツールで開くことができます。
+
+```bash
+# 基本的な変換
+python -m src.core.bpmn_converter \
+  --input samples/expected/sample-tiny-01.json \
+  --output output/flow.bpmn
+
+# 検証付き変換
+python -m src.core.bpmn_converter \
+  --input samples/expected/sample-tiny-01.json \
+  --output output/flow.bpmn \
+  --validate
+
+# デバッグモード（詳細ログ出力）
+python -m src.core.bpmn_converter \
+  --input samples/expected/sample-tiny-01.json \
+  --output output/flow.bpmn \
+  --validate \
+  --debug
+```
+
+**BPMN変換の特徴**:
+- JSON actors → BPMN participant + lane要素（スイムレーン構造）
+- JSON tasks → BPMN userTask/serviceTask要素（actor_typeで判定）
+- JSON gateways → BPMN exclusiveGateway/parallelGateway/inclusiveGateway要素
+- JSON flows → BPMN sequenceFlow要素（条件式サポート）
+- 動的座標計算（Sugiyamaアルゴリズム原理に基づく階層的レイアウト）
+- BPMN 2.0完全準拠（名前空間、必須要素、図形情報）
+
+**検証機能**:
+```bash
+# BPMN XMLファイルの検証のみ実行
+python -m src.core.bpmn_validator output/flow.bpmn --verbose
+```
 
 ---
 

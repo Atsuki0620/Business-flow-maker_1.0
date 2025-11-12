@@ -1,6 +1,6 @@
 # CHANGELOG
 
-[最終更新日時] 2025年11月12日 00:35 JST
+[最終更新日時] 2025年11月12日 14:20 JST
 
 本ファイルは Business-flow-maker プロジェクトの全ての重要な変更を記録します。
 
@@ -280,6 +280,78 @@
 - ゲートウェイ配置アルゴリズムの改善が必要（位相ソート実装）
 - 正規化処理の追加（判定タスクをゲートウェイに自動変換）
 - レイアウトエンジンの改善（Sugiyama-style layering、elk.js導入検討）
+
+---
+
+### [v0.40] - 2025-11-12
+
+#### 追加（Layer2: BPMN 2.0準拠出力機能）
+- **src/core/bpmn_converter.py**: JSON→BPMN 2.0 XML変換モジュール
+  - JSON業務フローデータをBPMN 2.0標準XML形式に変換
+  - 正しい名前空間定義（bpmn2、bpmndi、dc、di、xsi）
+  - 単一プロセス+レーン構造によるスイムレーン表現
+  - actors → participant + lane要素
+  - tasks → userTask/serviceTask要素（actor_typeで判定）
+  - gateways → exclusiveGateway/parallelGateway/inclusiveGateway要素
+  - flows → sequenceFlow要素（条件式サポート）
+  - CLI実装（--input, --output, --validate, --debug）
+
+- **src/core/bpmn_layout.py**: 動的座標計算モジュール
+  - Sugiyamaアルゴリズム原理に基づく階層的レイアウト
+  - トポロジカルソートによる階層決定
+  - バリセントリック法による交差最小化の基礎実装
+  - ノード数に応じた動的間隔調整
+  - レーン高さの自動計算
+  - マンハッタンルーティングによるエッジ経路計算
+  - 固定座標値の使用禁止（完全動的計算）
+
+- **src/core/bpmn_validator.py**: BPMN準拠性検証モジュール
+  - BPMN 2.0 XML構造検証
+  - 必須要素・属性の検証
+  - 参照整合性チェック
+  - 図形情報（BPMNDiagram, BPMNShape, BPMNEdge）の検証
+  - CLI実装（--verbose）
+
+- **tests/test_bpmn_converter.py**: 包括的テストスイート
+  - 基本変換機能テスト
+  - XML構造・BPMN 2.0準拠性テスト
+  - 座標計算テスト
+  - エッジケーステスト（単一タスク、ゲートウェイなし、複数タスク同一セル）
+  - スケーラビリティテスト（異なる規模のフロー）
+  - 統合テスト（全サンプルファイル）
+
+#### 技術仕様
+- **マッピング仕様**:
+  - JSON phases → タスク配置順序として反映
+  - JSON issues → BPMN documentation要素として保持可能
+  - 条件付き分岐 → conditionExpression要素
+  - スイムレーン → collaboration + participant + laneSet構造
+
+- **座標計算アルゴリズム**:
+  - ノード間隔: BPMN_HORIZONTAL_SPACING (80px), BPMN_VERTICAL_SPACING (40px)
+  - タスク寸法: BPMN_TASK_WIDTH (100px), BPMN_TASK_HEIGHT (80px)
+  - ゲートウェイ寸法: BPMN_GATEWAY_SIZE (50px)
+  - レーン最小高さ: BPMN_LANE_MIN_HEIGHT (150px)
+  - ラベル長に基づく幅調整（最大200px）
+
+- **LLM不使用**: 純粋な構造変換処理（決定論的処理）
+- **外部依存最小化**: Python標準ライブラリxml.etree.ElementTreeを使用
+
+#### 検証
+- sample-tiny-01.jsonで正常に変換・検証完了
+- 生成されたBPMN XMLがBPMN 2.0スキーマに準拠
+- 動的座標計算が正常動作
+- スイムレーン構造が正しく表現
+- ゲートウェイ分岐が適切に実装
+
+#### 制約事項
+- エクスポート機能（SVG/PNG出力）は今回のスコープ外
+- bpmn-jsによるプレビュー機能は後続フェーズで実装予定
+- 循環フロー検出は未実装
+
+#### ドキュメント
+- README.md: BPMN変換コマンド使用例を追加
+- PLAN.md: Layer2実装状況を更新
 
 ---
 

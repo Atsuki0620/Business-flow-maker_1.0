@@ -18,7 +18,7 @@ import argparse
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from xml.etree.ElementTree import Element, SubElement, ElementTree, tostring
 from xml.dom import minidom
 
@@ -424,16 +424,358 @@ def _prettify_xml(elem: Element) -> str:
         return f'<?xml version="1.0" encoding="UTF-8"?>\n{xml_string}'
 
 
+def generate_bpmn_svg(
+    flow: Dict[str, Any],
+    node_positions: Dict[str, BPMNNodeLayout],
+    edge_waypoints: List[BPMNEdgeLayout],
+    lane_heights: Dict[str, float],
+    actor_order: Dict[str, int],
+    diagram_width: float,
+    diagram_height: float,
+) -> str:
+    """
+    Generate SVG visualization of BPMN diagram.
+
+    Args:
+        flow: Flow document dictionary
+        node_positions: Calculated node positions
+        edge_waypoints: Calculated edge waypoints
+        lane_heights: Calculated lane heights
+        actor_order: Actor ordering
+        diagram_width: Total diagram width
+        diagram_height: Total diagram height
+
+    Returns:
+        SVG string
+    """
+    from xml.etree.ElementTree import Element, SubElement, tostring
+    from src.core.bpmn_layout import BPMN_MARGIN
+
+    # Create SVG root element
+    svg = Element(
+        "svg",
+        attrib={
+            "xmlns": "http://www.w3.org/2000/svg",
+            "viewBox": f"0 0 {diagram_width} {diagram_height}",
+            "width": str(int(diagram_width)),
+            "height": str(int(diagram_height)),
+        },
+    )
+
+    # Add style definitions
+    style = SubElement(svg, "style")
+    style.text = """
+        .bpmn-lane { fill: #f8f8f8; stroke: #000; stroke-width: 1; }
+        .bpmn-lane:nth-of-type(even) { fill: #e8e8e8; }
+        .bpmn-task { fill: #fff; stroke: #000; stroke-width: 1.5; }
+        .bpmn-service-task { fill: #e1f5fe; stroke: #01579b; stroke-width: 1.5; }
+        .bpmn-gateway { fill: #ffffcc; stroke: #ff9800; stroke-width: 2; }
+        .bpmn-flow { stroke: #000; stroke-width: 1.5; fill: none; }
+        .bpmn-text { font-family: Arial, sans-serif; font-size: 12px; text-anchor: middle; }
+        .bpmn-label { font-family: Arial, sans-serif; font-size: 11px; fill: #666; }
+        .bpmn-lane-label { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; }
+    """
+
+    # Add arrow marker
+    defs = SubElement(svg, "defs")
+    marker = SubElement(
+        defs,
+        "marker",
+        attrib={
+            "id": "arrow",
+            "markerWidth": "10",
+            "markerHeight": "10",
+            "refX": "9",
+            "refY": "3",
+            "orient": "auto",
+            "markerUnits": "strokeWidth",
+        },
+    )
+    SubElement(marker, "path", attrib={"d": "M0,0 L0,6 L9,3 z", "fill": "#000"})
+
+    # Draw swimlanes
+    cumulative_y = BPMN_MARGIN
+    for actor in sorted(flow.get("actors", []), key=lambda a: actor_order.get(a["id"], 0)):
+        actor_id = actor["id"]
+        height = lane_heights.get(actor_id, 150)
+
+        # Lane background
+        SubElement(
+            svg,
+            "rect",
+            attrib={
+                "class": "bpmn-lane",
+                "x": str(BPMN_MARGIN),
+                "y": str(cumulative_y),
+                "width": str(diagram_width - 2 * BPMN_MARGIN),
+                "height": str(height),
+            },
+        )
+
+        # Lane label (rotated on the left)
+        text_elem = SubElement(
+            svg,
+            "text",
+            attrib={
+                "class": "bpmn-lane-label",
+                "x": str(BPMN_MARGIN + 15),
+                "y": str(cumulative_y + height / 2),
+                "text-anchor": "middle",
+                "transform": f"rotate(-90 {BPMN_MARGIN + 15} {cumulative_y + height / 2})",
+            },
+        )
+        text_elem.text = actor.get("name", actor_id)
+
+        cumulative_y += height
+
+    # Draw tasks
+    for node in node_positions.values():
+        if node.kind == "task":
+            # Find task details to determine type
+            task_def = next((t for t in flow.get("tasks", []) if t["id"] == node.node_id), {})
+            actor_id = task_def.get("actor_id")
+            actor = next((a for a in flow.get("actors", []) if a["id"] == actor_id), {})
+            is_service_task = actor.get("type") == "system"
+
+            # Draw task rectangle
+            SubElement(
+                svg,
+                "rect",
+                attrib={
+                    "class": "bpmn-service-task" if is_service_task else "bpmn-task",
+                    "x": str(node.x),
+                    "y": str(node.y),
+                    "width": str(node.width),
+                    "height": str(node.height),
+                    "rx": "5",
+                    "ry": "5",
+                },
+            )
+
+            # Draw task label (wrapped text if needed)
+            text_elem = SubElement(
+                svg,
+                "text",
+                attrib={
+                    "class": "bpmn-text",
+                    "x": str(node.x + node.width / 2),
+                    "y": str(node.y + node.height / 2 + 4),
+                },
+            )
+            text_elem.text = node.label
+
+        elif node.kind == "gateway":
+            # Find gateway details to determine type
+            gateway_def = next((g for g in flow.get("gateways", []) if g["id"] == node.node_id), {})
+            gateway_type = gateway_def.get("type", "exclusive")
+
+            # Draw gateway diamond
+            cx = node.x
+            cy = node.y
+            size = node.width
+            points = [
+                (cx, cy - size / 2),
+                (cx + size / 2, cy),
+                (cx, cy + size / 2),
+                (cx - size / 2, cy),
+            ]
+            SubElement(
+                svg,
+                "polygon",
+                attrib={
+                    "class": "bpmn-gateway",
+                    "points": " ".join(f"{x},{y}" for x, y in points),
+                },
+            )
+
+            # Draw gateway marker
+            if gateway_type == "exclusive":
+                # X marker
+                marker_size = size * 0.4
+                SubElement(
+                    svg,
+                    "line",
+                    attrib={
+                        "x1": str(cx - marker_size / 2),
+                        "y1": str(cy - marker_size / 2),
+                        "x2": str(cx + marker_size / 2),
+                        "y2": str(cy + marker_size / 2),
+                        "stroke": "#ff9800",
+                        "stroke-width": "2",
+                    },
+                )
+                SubElement(
+                    svg,
+                    "line",
+                    attrib={
+                        "x1": str(cx + marker_size / 2),
+                        "y1": str(cy - marker_size / 2),
+                        "x2": str(cx - marker_size / 2),
+                        "y2": str(cy + marker_size / 2),
+                        "stroke": "#ff9800",
+                        "stroke-width": "2",
+                    },
+                )
+            elif gateway_type == "parallel":
+                # + marker
+                marker_size = size * 0.4
+                SubElement(
+                    svg,
+                    "line",
+                    attrib={
+                        "x1": str(cx),
+                        "y1": str(cy - marker_size / 2),
+                        "x2": str(cx),
+                        "y2": str(cy + marker_size / 2),
+                        "stroke": "#ff9800",
+                        "stroke-width": "2",
+                    },
+                )
+                SubElement(
+                    svg,
+                    "line",
+                    attrib={
+                        "x1": str(cx - marker_size / 2),
+                        "y1": str(cy),
+                        "x2": str(cx + marker_size / 2),
+                        "y2": str(cy),
+                        "stroke": "#ff9800",
+                        "stroke-width": "2",
+                    },
+                )
+            elif gateway_type == "inclusive":
+                # O marker
+                marker_size = size * 0.35
+                SubElement(
+                    svg,
+                    "circle",
+                    attrib={
+                        "cx": str(cx),
+                        "cy": str(cy),
+                        "r": str(marker_size / 2),
+                        "fill": "none",
+                        "stroke": "#ff9800",
+                        "stroke-width": "2",
+                    },
+                )
+
+            # Gateway label (below)
+            if node.label:
+                text_elem = SubElement(
+                    svg,
+                    "text",
+                    attrib={
+                        "class": "bpmn-text",
+                        "x": str(cx),
+                        "y": str(cy + size / 2 + 15),
+                        "font-size": "11",
+                    },
+                )
+                text_elem.text = node.label
+
+    # Draw sequence flows
+    for edge in edge_waypoints:
+        # Draw the flow line
+        if len(edge.waypoints) >= 2:
+            # Create path
+            path_data = f"M {edge.waypoints[0][0]},{edge.waypoints[0][1]}"
+            for x, y in edge.waypoints[1:]:
+                path_data += f" L {x},{y}"
+
+            SubElement(
+                svg,
+                "path",
+                attrib={
+                    "class": "bpmn-flow",
+                    "d": path_data,
+                    "marker-end": "url(#arrow)",
+                },
+            )
+
+            # Draw condition label if exists
+            if edge.condition:
+                # Position label at midpoint
+                mid_idx = len(edge.waypoints) // 2
+                label_x = edge.waypoints[mid_idx][0]
+                label_y = edge.waypoints[mid_idx][1] - 5
+
+                text_elem = SubElement(
+                    svg,
+                    "text",
+                    attrib={
+                        "class": "bpmn-label",
+                        "x": str(label_x),
+                        "y": str(label_y),
+                        "text-anchor": "middle",
+                    },
+                )
+                text_elem.text = edge.condition
+
+    # Convert to string
+    svg_string = tostring(svg, encoding="unicode", method="xml")
+    return f'<?xml version="1.0" encoding="UTF-8"?>\n{svg_string}'
+
+
 def save_bpmn(bpmn_xml: str, output_path: Path) -> None:
     """Save BPMN XML to file."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(bpmn_xml, encoding="utf-8")
 
 
+def save_svg(svg_content: str, output_path: Path) -> None:
+    """Save SVG to file."""
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(svg_content, encoding="utf-8")
+
+
+def determine_output_paths(input_path: Path, output_arg: Path, svg_output_arg: Path = None) -> Tuple[Path, Path]:
+    """
+    Determine output paths for BPMN and SVG files.
+
+    If input is in runs/ structure, output to the same run directory.
+    Otherwise, use the provided output paths.
+
+    Args:
+        input_path: Input JSON file path
+        output_arg: BPMN output path from CLI argument
+        svg_output_arg: SVG output path from CLI argument (optional)
+
+    Returns:
+        Tuple of (bpmn_path, svg_path)
+    """
+    input_path = input_path.resolve()
+
+    # Check if input is in runs/ structure
+    if "runs" in input_path.parts:
+        # Find the run directory
+        run_dir = None
+        for i, part in enumerate(input_path.parts):
+            if part == "runs" and i + 1 < len(input_path.parts):
+                run_dir = Path(*input_path.parts[:i+2])
+                break
+
+        if run_dir and run_dir.exists():
+            # Output to runs/YYYYMMDD_HHMMSS_name/output/
+            output_dir = run_dir / "output"
+            bpmn_path = output_dir / "flow.bpmn"
+            svg_path = output_dir / "flow-bpmn.svg"
+            return bpmn_path, svg_path
+
+    # Default behavior: use provided output paths
+    bpmn_path = output_arg
+    if svg_output_arg:
+        svg_path = svg_output_arg
+    else:
+        # Default SVG path based on BPMN path
+        svg_path = bpmn_path.parent / f"{bpmn_path.stem}-bpmn.svg"
+
+    return bpmn_path, svg_path
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Convert Business-flow-maker JSON to BPMN 2.0 XML"
+        description="Convert Business-flow-maker JSON to BPMN 2.0 XML with SVG visualization"
     )
     parser.add_argument(
         "--input",
@@ -445,7 +787,18 @@ def parse_args() -> argparse.Namespace:
         "--output",
         type=Path,
         default=Path("output/flow.bpmn"),
-        help="Output BPMN file path (default: output/flow.bpmn)",
+        help="Output BPMN file path (default: output/flow.bpmn, or auto-detect from runs/)",
+    )
+    parser.add_argument(
+        "--svg-output",
+        type=Path,
+        default=None,
+        help="Output SVG file path (default: same directory as BPMN with -bpmn.svg suffix)",
+    )
+    parser.add_argument(
+        "--no-svg",
+        action="store_true",
+        help="Disable SVG generation",
     )
     parser.add_argument(
         "--validate",
@@ -474,24 +827,98 @@ def main() -> None:
     logger.info(f"Loading flow from {args.input}")
     flow = load_flow_json(args.input)
 
+    # Determine output paths (handles runs/ structure auto-detection)
+    bpmn_path, svg_path = determine_output_paths(args.input, args.output, args.svg_output)
+
     logger.info("Converting to BPMN 2.0 XML")
     bpmn_xml = convert_to_bpmn(flow)
 
-    logger.info(f"Saving BPMN to {args.output}")
-    save_bpmn(bpmn_xml, args.output)
+    logger.info(f"Saving BPMN to {bpmn_path}")
+    save_bpmn(bpmn_xml, bpmn_path)
+
+    # Generate SVG if not disabled
+    svg_generated = False
+    if not args.no_svg:
+        logger.info("Generating BPMN SVG visualization")
+        # Calculate layout (reuse from conversion)
+        node_positions, edge_waypoints, lane_heights = calculate_layout(flow)
+        actor_order = {actor["id"]: idx for idx, actor in enumerate(flow.get("actors", []))}
+        diagram_width, diagram_height = calculate_diagram_bounds(node_positions, lane_heights, actor_order)
+
+        svg_content = generate_bpmn_svg(
+            flow,
+            node_positions,
+            edge_waypoints,
+            lane_heights,
+            actor_order,
+            diagram_width,
+            diagram_height,
+        )
+
+        logger.info(f"Saving SVG to {svg_path}")
+        save_svg(svg_content, svg_path)
+        svg_generated = True
 
     logger.info("Conversion complete")
 
+    # Validate BPMN if requested
+    validation_passed = None
     if args.validate:
         logger.info("Validating BPMN")
         from src.core.bpmn_validator import validate_bpmn
-        is_valid, errors = validate_bpmn(args.output)
+        is_valid, errors = validate_bpmn(bpmn_path)
         if is_valid:
             logger.info("✓ BPMN validation passed")
+            validation_passed = True
         else:
             logger.error("✗ BPMN validation failed:")
             for error in errors:
                 logger.error(f"  - {error}")
+            validation_passed = False
+
+    # Update info.md if in runs/ structure
+    input_path = args.input.resolve()
+    if "runs" in input_path.parts:
+        # Find the run directory
+        run_dir = None
+        for i, part in enumerate(input_path.parts):
+            if part == "runs" and i + 1 < len(input_path.parts):
+                run_dir = Path(*input_path.parts[:i+2])
+                break
+
+        if run_dir and run_dir.exists() and (run_dir / "info.md").exists():
+            try:
+                from src.utils import run_manager
+
+                # Prepare output files info
+                output_files = []
+                if bpmn_path.exists():
+                    output_files.append({
+                        "path": str(bpmn_path.relative_to(run_dir)),
+                        "size": bpmn_path.stat().st_size,
+                    })
+                if svg_generated and svg_path.exists():
+                    output_files.append({
+                        "path": str(svg_path.relative_to(run_dir)),
+                        "size": svg_path.stat().st_size,
+                    })
+
+                # Prepare BPMN conversion info
+                bpmn_info = {
+                    "svg_generated": svg_generated,
+                }
+                if validation_passed is not None:
+                    bpmn_info["validation_passed"] = validation_passed
+
+                # Update info.md
+                run_manager.update_info_md(run_dir, {
+                    "bpmn_conversion": bpmn_info,
+                    "output_files": output_files,
+                })
+
+                logger.info(f"Updated execution info in {run_dir / 'info.md'}")
+            except Exception as e:
+                logger.warning(f"Failed to update info.md: {e}")
 
 
 if __name__ == "__main__":

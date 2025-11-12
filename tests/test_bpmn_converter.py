@@ -511,3 +511,201 @@ class TestIntegration:
                 assert is_valid, f"Validation failed for {sample_file.name}: {errors}"
             finally:
                 temp_path.unlink()
+
+
+class TestSVGGeneration:
+    """Test SVG visualization generation."""
+
+    def test_svg_generation_basic(self, sample_tiny_01):
+        """Test basic SVG generation."""
+        from src.core.bpmn_converter import generate_bpmn_svg
+        from src.core.bpmn_layout import calculate_layout, calculate_diagram_bounds
+
+        node_positions, edge_waypoints, lane_heights = calculate_layout(sample_tiny_01)
+        actor_order = {actor["id"]: idx for idx, actor in enumerate(sample_tiny_01.get("actors", []))}
+        diagram_width, diagram_height = calculate_diagram_bounds(node_positions, lane_heights, actor_order)
+
+        svg_content = generate_bpmn_svg(
+            sample_tiny_01,
+            node_positions,
+            edge_waypoints,
+            lane_heights,
+            actor_order,
+            diagram_width,
+            diagram_height,
+        )
+
+        assert svg_content is not None
+        assert "<?xml version" in svg_content
+        assert "<svg" in svg_content
+        assert "xmlns" in svg_content
+        assert "</svg>" in svg_content
+
+    def test_svg_contains_visual_elements(self, sample_tiny_01):
+        """Test that SVG contains expected visual elements."""
+        from src.core.bpmn_converter import generate_bpmn_svg
+        from src.core.bpmn_layout import calculate_layout, calculate_diagram_bounds
+
+        node_positions, edge_waypoints, lane_heights = calculate_layout(sample_tiny_01)
+        actor_order = {actor["id"]: idx for idx, actor in enumerate(sample_tiny_01.get("actors", []))}
+        diagram_width, diagram_height = calculate_diagram_bounds(node_positions, lane_heights, actor_order)
+
+        svg_content = generate_bpmn_svg(
+            sample_tiny_01,
+            node_positions,
+            edge_waypoints,
+            lane_heights,
+            actor_order,
+            diagram_width,
+            diagram_height,
+        )
+
+        # Check for lanes
+        assert "bpmn-lane" in svg_content
+        # Check for tasks
+        assert "bpmn-task" in svg_content or "bpmn-service-task" in svg_content
+        # Check for gateways
+        assert "bpmn-gateway" in svg_content
+        # Check for flows
+        assert "bpmn-flow" in svg_content
+        # Check for arrow marker
+        assert 'id="arrow"' in svg_content
+
+    def test_svg_with_different_gateway_types(self):
+        """Test SVG generation with different gateway types."""
+        from src.core.bpmn_converter import generate_bpmn_svg
+        from src.core.bpmn_layout import calculate_layout, calculate_diagram_bounds
+
+        for gateway_type in ["exclusive", "parallel", "inclusive"]:
+            flow = {
+                "metadata": {"id": f"{gateway_type}_test", "title": f"{gateway_type.title()} Test"},
+                "actors": [{"id": "actor_1", "name": "Actor 1", "type": "human"}],
+                "phases": [{"id": "phase_1", "name": "Phase 1"}],
+                "tasks": [
+                    {"id": "task_1", "name": "Task 1", "actor_id": "actor_1", "phase_id": "phase_1", "handoff_to": []}
+                ],
+                "gateways": [
+                    {"id": "gateway_1", "name": "Gateway", "type": gateway_type}
+                ],
+                "flows": [],
+                "issues": [],
+            }
+
+            node_positions, edge_waypoints, lane_heights = calculate_layout(flow)
+            actor_order = {actor["id"]: idx for idx, actor in enumerate(flow.get("actors", []))}
+            diagram_width, diagram_height = calculate_diagram_bounds(node_positions, lane_heights, actor_order)
+
+            svg_content = generate_bpmn_svg(
+                flow,
+                node_positions,
+                edge_waypoints,
+                lane_heights,
+                actor_order,
+                diagram_width,
+                diagram_height,
+            )
+
+            assert svg_content is not None
+            assert "<svg" in svg_content
+            assert "bpmn-gateway" in svg_content
+
+    def test_svg_file_output(self, sample_tiny_01):
+        """Test SVG file can be saved and loaded."""
+        from src.core.bpmn_converter import generate_bpmn_svg, save_svg
+        from src.core.bpmn_layout import calculate_layout, calculate_diagram_bounds
+
+        node_positions, edge_waypoints, lane_heights = calculate_layout(sample_tiny_01)
+        actor_order = {actor["id"]: idx for idx, actor in enumerate(sample_tiny_01.get("actors", []))}
+        diagram_width, diagram_height = calculate_diagram_bounds(node_positions, lane_heights, actor_order)
+
+        svg_content = generate_bpmn_svg(
+            sample_tiny_01,
+            node_positions,
+            edge_waypoints,
+            lane_heights,
+            actor_order,
+            diagram_width,
+            diagram_height,
+        )
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".svg", delete=False) as f:
+            svg_path = Path(f.name)
+
+        try:
+            save_svg(svg_content, svg_path)
+            assert svg_path.exists()
+            assert svg_path.stat().st_size > 0
+
+            # Read back and verify
+            loaded_content = svg_path.read_text(encoding="utf-8")
+            assert loaded_content == svg_content
+        finally:
+            svg_path.unlink()
+
+    def test_svg_conditional_flows(self, flow_with_gateway):
+        """Test SVG generation includes condition labels."""
+        from src.core.bpmn_converter import generate_bpmn_svg
+        from src.core.bpmn_layout import calculate_layout, calculate_diagram_bounds
+
+        node_positions, edge_waypoints, lane_heights = calculate_layout(flow_with_gateway)
+        actor_order = {actor["id"]: idx for idx, actor in enumerate(flow_with_gateway.get("actors", []))}
+        diagram_width, diagram_height = calculate_diagram_bounds(node_positions, lane_heights, actor_order)
+
+        svg_content = generate_bpmn_svg(
+            flow_with_gateway,
+            node_positions,
+            edge_waypoints,
+            lane_heights,
+            actor_order,
+            diagram_width,
+            diagram_height,
+        )
+
+        # Check for condition labels
+        assert "bpmn-label" in svg_content or "Yes" in svg_content or "No" in svg_content
+
+
+class TestRunsIntegration:
+    """Test runs/ directory structure integration."""
+
+    def test_determine_output_paths_with_runs(self):
+        """Test output path determination for runs/ structure."""
+        from src.core.bpmn_converter import determine_output_paths
+
+        # Create a mock runs structure path
+        input_path = Path("/home/user/project/runs/20251112_123456_sample/output/flow.json")
+        output_arg = Path("output/flow.bpmn")
+
+        bpmn_path, svg_path = determine_output_paths(input_path, output_arg)
+
+        # Should use runs directory structure
+        assert "runs" in str(bpmn_path)
+        assert "20251112_123456_sample" in str(bpmn_path)
+        assert bpmn_path.name == "flow.bpmn"
+        assert svg_path.name == "flow-bpmn.svg"
+
+    def test_determine_output_paths_without_runs(self):
+        """Test output path determination for non-runs structure."""
+        from src.core.bpmn_converter import determine_output_paths
+
+        input_path = Path("/home/user/project/samples/expected/sample.json")
+        output_arg = Path("output/flow.bpmn")
+
+        bpmn_path, svg_path = determine_output_paths(input_path, output_arg)
+
+        # Should use provided output paths
+        assert bpmn_path == output_arg
+        assert svg_path == Path("output/flow-bpmn.svg")
+
+    def test_determine_output_paths_with_custom_svg(self):
+        """Test output path determination with custom SVG path."""
+        from src.core.bpmn_converter import determine_output_paths
+
+        input_path = Path("/home/user/project/samples/expected/sample.json")
+        output_arg = Path("output/flow.bpmn")
+        svg_output_arg = Path("custom/diagram.svg")
+
+        bpmn_path, svg_path = determine_output_paths(input_path, output_arg, svg_output_arg)
+
+        assert bpmn_path == output_arg
+        assert svg_path == svg_output_arg

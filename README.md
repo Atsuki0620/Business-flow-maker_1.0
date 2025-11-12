@@ -161,7 +161,7 @@ python -m src.visualizers.mermaid_visualizer \
 JSON業務フローデータをBPMN 2.0標準XML形式に変換します。生成されたBPMNファイルは、Camunda Modeler、bpmn.io、その他のBPMN準拠ツールで開くことができます。
 
 ```bash
-# 基本的な変換
+# 基本的な変換（BPMN XML + SVG自動生成）
 python -m src.core.bpmn_converter \
   --input samples/expected/sample-tiny-01.json \
   --output output/flow.bpmn
@@ -171,6 +171,18 @@ python -m src.core.bpmn_converter \
   --input samples/expected/sample-tiny-01.json \
   --output output/flow.bpmn \
   --validate
+
+# SVG生成を無効化
+python -m src.core.bpmn_converter \
+  --input samples/expected/sample-tiny-01.json \
+  --output output/flow.bpmn \
+  --no-svg
+
+# SVG出力先を個別指定
+python -m src.core.bpmn_converter \
+  --input samples/expected/sample-tiny-01.json \
+  --output output/flow.bpmn \
+  --svg-output output/custom-diagram.svg
 
 # デバッグモード（詳細ログ出力）
 python -m src.core.bpmn_converter \
@@ -187,6 +199,22 @@ python -m src.core.bpmn_converter \
 - JSON flows → BPMN sequenceFlow要素（条件式サポート）
 - 動的座標計算（Sugiyamaアルゴリズム原理に基づく階層的レイアウト）
 - BPMN 2.0完全準拠（名前空間、必須要素、図形情報）
+- **SVG自動生成**：ブラウザやGitHubで直接閲覧可能な可視化ファイル
+
+**SVG可視化の特徴**:
+- userTask/serviceTaskの視覚的区別（色分け）
+- exclusiveGateway（×印）、parallelGateway（＋印）、inclusiveGateway（○印）
+- 条件付きフローのラベル表示
+- スイムレーン構造の明確な表現
+- GitHubで自動プレビュー対応
+
+**runs構造での自動統合**:
+- 入力JSONが`runs/`ディレクトリ内にある場合、自動的に同一実行ディレクトリへ出力
+- BPMN XMLは`flow.bpmn`、SVG画像は`flow-bpmn.svg`として保存
+- `info.md`に変換情報を自動記録
+
+**サンプル成果物**:
+生成されたBPMN XMLとSVG可視化の実例は [samples/bpmn/](samples/bpmn/) ディレクトリで確認できます。
 
 **検証機能**:
 ```bash

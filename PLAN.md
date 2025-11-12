@@ -188,7 +188,7 @@ runs/
 
 ### §6.2 Layer2（BPMN パイプライン）実装状況
 
-✅ **実装完了（v0.40）**:
+✅ **実装完了（v0.40 + v0.41）**:
 - ✅ JSON→BPMN 2.0 XML 変換モジュール（`src/core/bpmn_converter.py`）
   - ✅ laneSet（泳線レーン）- 単一プロセス+レーン構造
   - ✅ task（タスクノード）- userTask/serviceTask対応
@@ -197,17 +197,27 @@ runs/
 - ✅ 動的座標計算（`src/core/bpmn_layout.py`）- Sugiyamaアルゴリズム原理
 - ✅ BPMN準拠性検証（`src/core/bpmn_validator.py`）
 - ✅ 包括的テストスイート（`tests/test_bpmn_converter.py`）
-- ✅ CLI実装（--input, --output, --validate, --debug）
+- ✅ CLI実装（--input, --output, --validate, --debug, --no-svg, --svg-output）
+- ✅ **SVG可視化機能**（v0.41）
+  - ✅ BPMN標準準拠の視覚表現
+  - ✅ userTask/serviceTaskの視覚的区別
+  - ✅ ゲートウェイマーカー（×、＋、○）
+  - ✅ GitHub自動プレビュー対応
+- ✅ **runs構造への完全統合**（v0.41）
+  - ✅ 自動出力先決定
+  - ✅ info.md自動更新
+  - ✅ output_files情報記録
 
 🔄 **今後の拡張機能**:
 - bpmn-js プレビュー機能（Web UI）
-- SVG/PNG エクスポート機能
+- PNG エクスポート機能（SVGからの変換）
 - bpmnlint 連携（BPMN仕様準拠チェック強化）
 - レイアウトアルゴリズムの改善（完全なSugiyama実装、elk.js導入検討）
 - 循環フロー検出
 
 ### §6.3 将来計画（v1.0.0 に向けて）
 - ✅ Layer2（BPMN変換）の基本実装完了（v0.40）
+- ✅ Layer2（SVG可視化）の実装完了（v0.41）
 - bpmn-js プレビュー機能の実装
 - 自動テストのカバレッジ拡充（目標: 80%以上）
 - CI/CD パイプラインの整備（GitHub Actions）

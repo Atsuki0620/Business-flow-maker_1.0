@@ -1,6 +1,6 @@
 # CHANGELOG
 
-[最終更新日時] 2025年11月12日 14:20 JST
+[最終更新日時] 2025年11月12日 22:40 JST
 
 本ファイルは Business-flow-maker プロジェクトの全ての重要な変更を記録します。
 
@@ -352,6 +352,74 @@
 #### ドキュメント
 - README.md: BPMN変換コマンド使用例を追加
 - PLAN.md: Layer2実装状況を更新
+
+---
+
+### [v0.41] - 2025-11-12
+
+#### 追加（Layer2: SVG可視化機能とruns統合）
+- **SVG生成機能**（`src/core/bpmn_converter.py:generate_bpmn_svg`）
+  - BPMN XMLと同時にSVG形式での可視化ファイルを自動生成
+  - BPMN標準の視覚表現規則に準拠
+  - userTask/serviceTaskの視覚的区別（色分け）
+  - exclusiveGateway（×印）、parallelGateway（＋印）、inclusiveGateway（○印）
+  - 条件付きフローのラベル表示
+  - スイムレーン構造の背景表現
+  - レーン名の回転表示（左端配置）
+  - GitHub上で直接プレビュー可能
+
+- **runs構造への完全統合**
+  - 入力JSONがruns/ディレクトリ内の場合、自動的に同一実行ディレクトリへ出力
+  - 出力ファイル命名規則: flow.bpmn、flow-bpmn.svg
+  - info.md自動更新（BPMN変換情報、検証結果、SVG生成状況）
+  - output_files情報の追加
+
+- **CLI拡張**
+  - `--no-svg`: SVG生成を無効化
+  - `--svg-output <path>`: SVG出力先を個別指定
+  - デフォルトでBPMN XML+SVGの両方を生成
+  - runs構造の自動検出と適切な出力先決定
+
+- **サンプル成果物の配置**（`samples/bpmn/`ディレクトリ）
+  - 全サンプルファイル（tiny/small/medium/large）のBPMN XML+SVG出力
+  - samples/bpmn/README.md: 成果物の説明と使用方法
+  - GitHub上で直接閲覧可能な代表的な成果物
+
+#### テストの拡張（`tests/test_bpmn_converter.py`）
+- **TestSVGGeneration**: SVG生成機能テスト
+  - 基本的なSVG生成テスト
+  - 視覚要素（レーン、タスク、ゲートウェイ、フロー）の検証
+  - 異なるゲートウェイタイプのテスト
+  - ファイル出力/読込テスト
+  - 条件付きフローのラベルテスト
+
+- **TestRunsIntegration**: runs構造統合テスト
+  - runs構造での出力先自動決定テスト
+  - 非runs構造でのデフォルト動作テスト
+  - カスタムSVG出力先指定テスト
+
+#### 技術仕様
+- **SVG視覚表現**:
+  - タスク: 角丸矩形（userTask: 白背景、serviceTask: 青背景）
+  - ゲートウェイ: 菱形+マーカー（exclusive: ×、parallel: ＋、inclusive: ○）
+  - シーケンスフロー: 矢印付き線
+  - スイムレーン: 交互配色背景（#f8f8f8 / #e8e8e8）
+  - フォント: Arial, sans-serif（12px本文、14pxレーンラベル）
+
+- **ファイル命名規則**:
+  - BPMN XML: flow.bpmn
+  - SVG画像: flow-bpmn.svg（既存のflow.svgと区別）
+
+#### 検証
+- 全サンプルファイルで正常にSVG生成完了
+- GitHubでSVGファイルが正しくプレビュー表示されることを確認
+- runs構造での自動出力先決定が正常動作
+- info.md更新機能が正常動作
+
+#### ドキュメント
+- samples/bpmn/README.md: BPMN成果物の説明追加
+- README.md: SVG出力機能の使用例追加
+- PLAN.md: Layer2可視化機能の完成を記録
 
 ---
 

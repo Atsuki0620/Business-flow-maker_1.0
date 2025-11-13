@@ -73,42 +73,69 @@ def build_messages(input_text: str) -> List[Dict[str, str]]:
     system_prompt = (
         "あなたは業務フローアーキテクトです。\n"
         "業務文書を読み、actors / phases / tasks / flows / gateways / issues / metadata を含む JSON を生成してください。\n\n"
-        "必須ルール:\n"
+        "【重要】タスクとゲートウェイの使い分け（BPMN 2.0準拠）:\n"
+        "◆ タスク (tasks): 人間またはシステムが実行する具体的な作業単位\n"
+        "  - 実際の作業や操作を表す（申請書作成、見積取得、承認作業、発注処理など）\n"
+        "  - 時間とリソースを消費する活動\n"
+        "  - 例: ✅「申請書作成」「部長承認」「発注処理」\n"
+        "  - 非該当: ❌「金額判定」「条件分岐」（これらはゲートウェイ）\n\n"
+        "◆ ゲートウェイ (gateways): フローの分岐・合流を制御する要素\n"
+        "  - 判定ロジックそのものを表現（作業は行わない）\n"
+        "  - type: exclusive（排他的・1つ選択）/ parallel（並行・すべて実行）/ inclusive（包含的・複数選択可）\n"
+        "  - 必ず2つ以上の出力フローが必要\n"
+        "  - 例: ✅「10万円以上か判定」「承認結果分岐」「並行処理開始」\n\n"
+        "【黄金ルール】:\n"
+        "1. 実作業はタスク、判定・分岐はゲートウェイ\n"
+        "2. タスクとゲートウェイを重複させない（同じ内容で両方定義しない）\n"
+        "3. 承認プロセス = 「承認タスク」→「承認結果ゲートウェイ」の組み合わせ\n"
+        "4. システムによる自動判定はゲートウェイで表現\n"
+        "5. 並行処理は parallel ゲートウェイで表現\n\n"
+        "【JSON生成ルール】:\n"
         "1. JSON Schema に準拠し、snake_case キーを維持する\n"
-        "2. tasks と flows の ID は対応させる（flows[].from/to は必ず tasks[].id または gateways[].id を参照）\n"
+        "2. flows[].from/to は必ず tasks[].id または gateways[].id を参照する\n"
         "3. 曖昧または不明な情報は issues[].note に記録する\n"
         "4. flows[].condition は分岐がある場合のみ記載する\n"
         "5. tasks[].handoff_to は空配列でも必ず含める\n"
         "6. 出力は純粋な JSON（```マークダウンブロックは不要）\n"
-        "7. ゲートウェイ (gateways) の使用ルール:\n"
-        "   - 判定・分岐処理はタスクではなくゲートウェイとして表現する\n"
-        "   - ゲートウェイとタスクを重複させない（例: 「金額判定」はゲートウェイのみで、タスクとしては定義しない）\n"
-        "   - ゲートウェイの type は exclusive（排他的・1つ選択）/ parallel（並行・すべて実行）/ inclusive（包含的・複数選択可）から選択\n"
-        "   - ゲートウェイには必ず2つ以上の出力フローが必要（flows[].from にゲートウェイIDを指定）\n"
-        "   - システムによる自動判定処理はゲートウェイとして表現する\n"
     )
 
-    # Few-shot example（sample-tiny-01）を読み込む
-    try:
-        example_input_path = pathlib.Path("samples/input/sample-tiny-01.md")
-        example_output_path = pathlib.Path("samples/expected/sample-tiny-01.json")
+    # Few-shot examples（段階的な複雑度）を読み込む
+    examples = []
+    example_files = [
+        ("samples/input/sample-tiny-01.md", "samples/expected/sample-tiny-01.json"),
+        ("samples/input/sample-small-01.md", "samples/expected/sample-small-01.json"),
+    ]
 
-        example_input = example_input_path.read_text(encoding="utf-8")
-        example_output = example_output_path.read_text(encoding="utf-8")
+    for input_file, output_file in example_files:
+        try:
+            example_input_path = pathlib.Path(input_file)
+            example_output_path = pathlib.Path(output_file)
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"以下の業務文書からフローJSONを生成してください:\n\n{example_input}"},
-            {"role": "assistant", "content": example_output},
-            {"role": "user", "content": f"以下の業務文書からフローJSONを生成してください:\n\n{input_text}"}
-        ]
-    except FileNotFoundError:
-        # Few-shot exampleが見つからない場合はシステムプロンプトとユーザー入力のみ
+            example_input = example_input_path.read_text(encoding="utf-8")
+            example_output = example_output_path.read_text(encoding="utf-8")
+
+            examples.append({
+                "user": f"以下の業務文書からフローJSONを生成してください:\n\n{example_input}",
+                "assistant": example_output
+            })
+        except FileNotFoundError:
+            logger.warning(f"Few-shot exampleファイルが見つかりません: {input_file}")
+            continue
+
+    # メッセージリストの構築
+    messages = [{"role": "system", "content": system_prompt}]
+
+    # Few-shot examplesを追加（段階的に複雑度が上がる順）
+    for example in examples:
+        messages.append({"role": "user", "content": example["user"]})
+        messages.append({"role": "assistant", "content": example["assistant"]})
+
+    # 実際のユーザー入力を追加
+    messages.append({"role": "user", "content": f"以下の業務文書からフローJSONを生成してください:\n\n{input_text}"})
+
+    # Few-shot exampleが1つも読み込めなかった場合は警告
+    if len(examples) == 0:
         logger.warning("Few-shot exampleファイルが見つかりません。システムプロンプトのみ使用します。")
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"以下の業務文書からフローJSONを生成してください:\n\n{input_text}"}
-        ]
 
     return messages
 

@@ -12,7 +12,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from xml.etree.ElementTree import Element, SubElement, tostring
 from xml.dom import minidom
 
@@ -76,6 +76,7 @@ class BPMNConverter:
         })
 
         # collaboration要素（スイムレーン構造）
+        process_id = f"Process_{self.metadata.get('id', 'main')}"
         if self.actors:
             collaboration = SubElement(definitions, 'bpmn2:collaboration', attrib={
                 'id': f"Collaboration_{self.metadata.get('id', 'flow')}",
@@ -85,12 +86,12 @@ class BPMNConverter:
                 SubElement(collaboration, 'bpmn2:participant', attrib={
                     'id': f"Participant_{actor['id']}",
                     'name': actor.get('name', actor['id']),
-                    'processRef': f"Process_{actor['id']}",
+                    'processRef': process_id,
                 })
 
         # process要素
         process = SubElement(definitions, 'bpmn2:process', attrib={
-            'id': f"Process_{self.metadata.get('id', 'main')}",
+            'id': process_id,
             'name': self.metadata.get('title', 'Business Process'),
             'isExecutable': 'false',
         })
@@ -500,7 +501,7 @@ class BPMNSVGGenerator:
 def convert_json_to_bpmn(
     json_path: Path,
     bpmn_output: Optional[Path] = None,
-    svg_output: Optional[Path] = None,
+    svg_output: Optional[Union[Path, str]] = None,
     validate: bool = True,
     debug: bool = False,
 ) -> Dict[str, Any]:
@@ -532,7 +533,9 @@ def convert_json_to_bpmn(
         logger.info(f"  flows: {len(flow.get('flows', []))}")
 
     # 出力先の決定（runs構造の検出）
-    if bpmn_output is None or svg_output is None:
+    auto_determine_svg = (svg_output == "auto")  # mainから"auto"が渡される場合のみ自動決定
+
+    if bpmn_output is None or auto_determine_svg:
         resolved_json_path = json_path.resolve()
 
         # runs/構造の検出
@@ -549,13 +552,13 @@ def convert_json_to_bpmn(
 
                 if bpmn_output is None:
                     bpmn_output = output_dir / "flow.bpmn"
-                if svg_output is None:
+                if auto_determine_svg:
                     svg_output = output_dir / "flow-bpmn.svg"
         else:
             # runs構造ではない場合のデフォルト
             if bpmn_output is None:
                 bpmn_output = Path("output") / "flow.bpmn"
-            if svg_output is None:
+            if auto_determine_svg:
                 svg_output = Path("output") / "flow-bpmn.svg"
 
     # BPMN XML変換
@@ -590,15 +593,16 @@ def convert_json_to_bpmn(
                     logger.warning(f"  警告: {warning}")
 
     # SVG生成
-    svg_generator = BPMNSVGGenerator(flow, converter.node_layouts, converter.lane_layouts)
-    svg_content = svg_generator.generate_svg()
+    if svg_output is not None and isinstance(svg_output, Path):
+        svg_generator = BPMNSVGGenerator(flow, converter.node_layouts, converter.lane_layouts)
+        svg_content = svg_generator.generate_svg()
 
-    # SVGファイルの保存
-    svg_output.parent.mkdir(parents=True, exist_ok=True)
-    svg_output.write_text(svg_content, encoding='utf-8')
+        # SVGファイルの保存
+        svg_output.parent.mkdir(parents=True, exist_ok=True)
+        svg_output.write_text(svg_content, encoding='utf-8')
 
-    if debug:
-        logger.info(f"SVGファイル生成完了: {svg_output}")
+        if debug:
+            logger.info(f"SVGファイル生成完了: {svg_output}")
 
     # runs構造の場合はinfo.mdを更新
     if "runs" in json_path.resolve().parts:
@@ -615,8 +619,11 @@ def convert_json_to_bpmn(
                 # 出力ファイル情報
                 output_files = [
                     {"path": str(bpmn_output.relative_to(run_dir)), "size": bpmn_output.stat().st_size},
-                    {"path": str(svg_output.relative_to(run_dir)), "size": svg_output.stat().st_size},
                 ]
+                if svg_output is not None and isinstance(svg_output, Path) and svg_output.exists():
+                    output_files.append(
+                        {"path": str(svg_output.relative_to(run_dir)), "size": svg_output.stat().st_size}
+                    )
 
                 update_data: Dict[str, Any] = {"output_files": output_files}
 
@@ -631,11 +638,14 @@ def convert_json_to_bpmn(
         except Exception as e:
             logger.warning(f"info.md更新に失敗しました: {e}")
 
-    return {
+    result = {
         'bpmn_path': str(bpmn_output),
-        'svg_path': str(svg_output),
         'validation': validation_result,
     }
+    if svg_output is not None and isinstance(svg_output, Path):
+        result['svg_path'] = str(svg_output)
+
+    return result
 
 
 def main() -> int:
@@ -685,16 +695,19 @@ def main() -> int:
     )
 
     try:
+        # SVG出力先の決定：--no-svgが指定された場合はNone、指定なしで--svg-outputも指定されていない場合は"auto"
+        svg_out = None if args.no_svg else (args.svg_output if args.svg_output else "auto")
+
         result = convert_json_to_bpmn(
             json_path=args.input,
             bpmn_output=args.output,
-            svg_output=None if args.no_svg else args.svg_output,
+            svg_output=svg_out,
             validate=args.validate,
             debug=args.debug,
         )
 
         print(f"✓ BPMN変換完了: {result['bpmn_path']}")
-        if not args.no_svg:
+        if 'svg_path' in result:
             print(f"✓ SVG生成完了: {result['svg_path']}")
 
         if result.get('validation'):

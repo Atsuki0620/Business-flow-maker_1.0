@@ -301,6 +301,17 @@ class BPMNLayoutEngine:
         x_positions = self._calculate_horizontal_positions(layers_by_phase)
         y_positions = self._calculate_vertical_positions(layers_by_phase, actor_order)
 
+        # 負の座標を修正（すべて正の値にする）
+        if x_positions:
+            min_x = min(x_positions.values())
+            if min_x < 0:
+                x_positions = {k: v - min_x + self._margin_x for k, v in x_positions.items()}
+
+        if y_positions:
+            min_y = min(y_positions.values())
+            if min_y < 0:
+                y_positions = {k: v - min_y + self._margin_y for k, v in y_positions.items()}
+
         # ノードレイアウトの構築
         node_layouts: Dict[str, BPMNNodeLayout] = {}
         for node_id in x_positions.keys():

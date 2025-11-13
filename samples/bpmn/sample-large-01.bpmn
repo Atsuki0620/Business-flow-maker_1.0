@@ -1,10 +1,10 @@
 <?xml version="1.0" ?>
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_sample-large-01" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Business-flow-maker" exporterVersion="1.0">
   <bpmn2:collaboration id="Collaboration_sample-large-01">
-    <bpmn2:participant id="Participant_regional_na" name="北米運用チーム" processRef="Process_regional_na"/>
-    <bpmn2:participant id="Participant_regional_emea" name="EMEA運用チーム" processRef="Process_regional_emea"/>
-    <bpmn2:participant id="Participant_regional_apac" name="APAC運用チーム" processRef="Process_regional_apac"/>
-    <bpmn2:participant id="Participant_cab_board" name="CAB" processRef="Process_cab_board"/>
+    <bpmn2:participant id="Participant_regional_na" name="北米運用チーム" processRef="Process_sample-large-01"/>
+    <bpmn2:participant id="Participant_regional_emea" name="EMEA運用チーム" processRef="Process_sample-large-01"/>
+    <bpmn2:participant id="Participant_regional_apac" name="APAC運用チーム" processRef="Process_sample-large-01"/>
+    <bpmn2:participant id="Participant_cab_board" name="CAB" processRef="Process_sample-large-01"/>
   </bpmn2:collaboration>
   <bpmn2:process id="Process_sample-large-01" name="グローバル IT 変更管理" isExecutable="false">
     <bpmn2:laneSet id="LaneSet_1">

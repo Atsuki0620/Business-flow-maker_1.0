@@ -1,8 +1,8 @@
 <?xml version="1.0" ?>
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_sample-tiny-01" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Business-flow-maker" exporterVersion="1.0">
   <bpmn2:collaboration id="Collaboration_sample-tiny-01">
-    <bpmn2:participant id="Participant_actor_sales" name="営業部" processRef="Process_actor_sales"/>
-    <bpmn2:participant id="Participant_actor_general_affairs" name="総務部" processRef="Process_actor_general_affairs"/>
+    <bpmn2:participant id="Participant_actor_sales" name="営業部" processRef="Process_sample-tiny-01"/>
+    <bpmn2:participant id="Participant_actor_general_affairs" name="総務部" processRef="Process_sample-tiny-01"/>
   </bpmn2:collaboration>
   <bpmn2:process id="Process_sample-tiny-01" name="備品購入申請フロー" isExecutable="false">
     <bpmn2:laneSet id="LaneSet_1">
@@ -39,53 +39,53 @@
   <bpmndi:BPMNDiagram id="BPMNDiagram_sample-tiny-01">
     <bpmndi:BPMNPlane id="BPMNPlane_sample-tiny-01" bpmnElement="Process_sample-tiny-01">
       <bpmndi:BPMNShape id="Shape_task_confirm_needs" bpmnElement="task_confirm_needs">
-        <dc:Bounds x="230" y="-99.0" width="180" height="80"/>
+        <dc:Bounds x="230" y="50.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_task_get_quote" bpmnElement="task_get_quote">
-        <dc:Bounds x="230" y="1.0" width="180" height="80"/>
+        <dc:Bounds x="230" y="150.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_task_create_request" bpmnElement="task_create_request">
-        <dc:Bounds x="230" y="101.0" width="180" height="80"/>
+        <dc:Bounds x="230" y="250.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_task_manager_approval" bpmnElement="task_manager_approval">
-        <dc:Bounds x="490" y="301.0" width="180" height="80"/>
+        <dc:Bounds x="490" y="450.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_task_general_affairs_approval" bpmnElement="task_general_affairs_approval">
-        <dc:Bounds x="750" y="253.0" width="180" height="80"/>
+        <dc:Bounds x="750" y="402.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_task_delivery" bpmnElement="task_delivery">
-        <dc:Bounds x="750" y="353.0" width="180" height="80"/>
+        <dc:Bounds x="750" y="502.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_gateway_amount" bpmnElement="gateway_amount">
-        <dc:Bounds x="1010" y="201.0" width="60" height="60"/>
+        <dc:Bounds x="1010" y="350.0" width="60" height="60"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Edge_flow_1" bpmnElement="flow_1">
-        <di:waypoint x="410" y="-59.0"/>
-        <di:waypoint x="230" y="41.0"/>
+        <di:waypoint x="410" y="90.0"/>
+        <di:waypoint x="230" y="190.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_flow_2" bpmnElement="flow_2">
-        <di:waypoint x="410" y="41.0"/>
-        <di:waypoint x="230" y="141.0"/>
+        <di:waypoint x="410" y="190.0"/>
+        <di:waypoint x="230" y="290.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_flow_3" bpmnElement="flow_3">
-        <di:waypoint x="410" y="141.0"/>
-        <di:waypoint x="1010" y="231.0"/>
+        <di:waypoint x="410" y="290.0"/>
+        <di:waypoint x="1010" y="380.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_flow_4" bpmnElement="flow_4">
-        <di:waypoint x="1070" y="231.0"/>
-        <di:waypoint x="490" y="341.0"/>
+        <di:waypoint x="1070" y="380.0"/>
+        <di:waypoint x="490" y="490.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_flow_5" bpmnElement="flow_5">
-        <di:waypoint x="1070" y="231.0"/>
-        <di:waypoint x="750" y="293.0"/>
+        <di:waypoint x="1070" y="380.0"/>
+        <di:waypoint x="750" y="442.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_flow_6" bpmnElement="flow_6">
-        <di:waypoint x="670" y="341.0"/>
-        <di:waypoint x="750" y="293.0"/>
+        <di:waypoint x="670" y="490.0"/>
+        <di:waypoint x="750" y="442.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_flow_7" bpmnElement="flow_7">
-        <di:waypoint x="930" y="293.0"/>
-        <di:waypoint x="750" y="393.0"/>
+        <di:waypoint x="930" y="442.0"/>
+        <di:waypoint x="750" y="542.0"/>
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

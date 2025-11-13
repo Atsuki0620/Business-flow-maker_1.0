@@ -1,0 +1,73 @@
+<?xml version="1.0" ?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_sample-medium-01" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Business-flow-maker" exporterVersion="1.0">
+  <bpmn2:collaboration id="Collaboration_sample-medium-01">
+    <bpmn2:participant id="Participant_hrbp" name="HRBP" processRef="Process_sample-medium-01"/>
+    <bpmn2:participant id="Participant_it_ops" name="情シス" processRef="Process_sample-medium-01"/>
+    <bpmn2:participant id="Participant_mentor" name="部門メンター" processRef="Process_sample-medium-01"/>
+    <bpmn2:participant id="Participant_new_hire" name="新入社員" processRef="Process_sample-medium-01"/>
+  </bpmn2:collaboration>
+  <bpmn2:process id="Process_sample-medium-01" name="新卒オンボーディング" isExecutable="false">
+    <bpmn2:laneSet id="LaneSet_1">
+      <bpmn2:lane id="Lane_hrbp" name="HRBP">
+        <bpmn2:flowNodeRef>t1_collect_docs</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+      <bpmn2:lane id="Lane_it_ops" name="情シス">
+        <bpmn2:flowNodeRef>t2_account</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+      <bpmn2:lane id="Lane_mentor" name="部門メンター">
+        <bpmn2:flowNodeRef>t3_orientation</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>t4_followup</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+      <bpmn2:lane id="Lane_new_hire" name="新入社員"/>
+    </bpmn2:laneSet>
+    <bpmn2:userTask id="t1_collect_docs" name="必要書類収集"/>
+    <bpmn2:userTask id="t2_account" name="アカウント発行"/>
+    <bpmn2:userTask id="t3_orientation" name="オリエンテーション"/>
+    <bpmn2:userTask id="t4_followup" name="30日面談"/>
+    <bpmn2:exclusiveGateway id="g1_device_ready" name="備品準備済みか"/>
+    <bpmn2:sequenceFlow id="f1" sourceRef="t1_collect_docs" targetRef="t2_account"/>
+    <bpmn2:sequenceFlow id="f2" sourceRef="t2_account" targetRef="g1_device_ready"/>
+    <bpmn2:sequenceFlow id="f3" sourceRef="g1_device_ready" targetRef="t3_orientation" name="準備済み"/>
+    <bpmn2:sequenceFlow id="f4" sourceRef="g1_device_ready" targetRef="t2_account" name="不足あり"/>
+    <bpmn2:sequenceFlow id="f5" sourceRef="t3_orientation" targetRef="t4_followup"/>
+  </bpmn2:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_sample-medium-01">
+    <bpmndi:BPMNPlane id="BPMNPlane_sample-medium-01" bpmnElement="Process_sample-medium-01">
+      <bpmndi:BPMNShape id="Shape_t1_collect_docs" bpmnElement="t1_collect_docs">
+        <dc:Bounds x="230" y="100.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_t2_account" bpmnElement="t2_account">
+        <dc:Bounds x="230" y="300.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_t3_orientation" bpmnElement="t3_orientation">
+        <dc:Bounds x="490" y="500.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_g1_device_ready" bpmnElement="g1_device_ready">
+        <dc:Bounds x="490" y="600.0" width="60" height="60"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_t4_followup" bpmnElement="t4_followup">
+        <dc:Bounds x="750" y="400.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_f1" bpmnElement="f1">
+        <di:waypoint x="410" y="140.0"/>
+        <di:waypoint x="230" y="340.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f2" bpmnElement="f2">
+        <di:waypoint x="410" y="340.0"/>
+        <di:waypoint x="490" y="630.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f3" bpmnElement="f3">
+        <di:waypoint x="550" y="630.0"/>
+        <di:waypoint x="490" y="540.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f4" bpmnElement="f4">
+        <di:waypoint x="550" y="630.0"/>
+        <di:waypoint x="230" y="340.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f5" bpmnElement="f5">
+        <di:waypoint x="670" y="540.0"/>
+        <di:waypoint x="750" y="440.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

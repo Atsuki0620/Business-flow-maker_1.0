@@ -1,0 +1,77 @@
+<?xml version="1.0" ?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_sample-small-01" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Business-flow-maker" exporterVersion="1.0">
+  <bpmn2:collaboration id="Collaboration_sample-small-01">
+    <bpmn2:participant id="Participant_req_sales" name="営業・コンサル" processRef="Process_sample-small-01"/>
+    <bpmn2:participant id="Participant_proc_ops" name="購買担当" processRef="Process_sample-small-01"/>
+    <bpmn2:participant id="Participant_fin_ctrl" name="経理／役員決裁" processRef="Process_sample-small-01"/>
+  </bpmn2:collaboration>
+  <bpmn2:process id="Process_sample-small-01" name="購買申請の即日承認" isExecutable="false">
+    <bpmn2:laneSet id="LaneSet_1">
+      <bpmn2:lane id="Lane_req_sales" name="営業・コンサル"/>
+      <bpmn2:lane id="Lane_proc_ops" name="購買担当">
+        <bpmn2:flowNodeRef>t1_intake</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>t2_validate</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>t3_dual_approval</bpmn2:flowNodeRef>
+        <bpmn2:flowNodeRef>t4_po_issue</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+      <bpmn2:lane id="Lane_fin_ctrl" name="経理／役員決裁"/>
+    </bpmn2:laneSet>
+    <bpmn2:userTask id="t1_intake" name="申請フォーム受領">
+      <bpmn2:documentation>テンプレート統一前の手入力調整が必要</bpmn2:documentation>
+    </bpmn2:userTask>
+    <bpmn2:userTask id="t2_validate" name="入力内容の正規化">
+      <bpmn2:documentation>30万円超は経理連携</bpmn2:documentation>
+    </bpmn2:userTask>
+    <bpmn2:userTask id="t3_dual_approval" name="二段階承認">
+      <bpmn2:documentation>役員決裁は Slack/紙フローの代替を検討</bpmn2:documentation>
+    </bpmn2:userTask>
+    <bpmn2:userTask id="t4_po_issue" name="発注・記録更新">
+      <bpmn2:documentation>完了時に申請者へ通知</bpmn2:documentation>
+    </bpmn2:userTask>
+    <bpmn2:exclusiveGateway id="g1_amount_check" name="30万円超か？"/>
+    <bpmn2:sequenceFlow id="f1" sourceRef="t1_intake" targetRef="t2_validate"/>
+    <bpmn2:sequenceFlow id="f2" sourceRef="t2_validate" targetRef="g1_amount_check"/>
+    <bpmn2:sequenceFlow id="f3" sourceRef="g1_amount_check" targetRef="t3_dual_approval" name="&gt;=300k"/>
+    <bpmn2:sequenceFlow id="f4" sourceRef="g1_amount_check" targetRef="t4_po_issue" name="&lt;300k"/>
+    <bpmn2:sequenceFlow id="f5" sourceRef="t3_dual_approval" targetRef="t4_po_issue"/>
+  </bpmn2:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_sample-small-01">
+    <bpmndi:BPMNPlane id="BPMNPlane_sample-small-01" bpmnElement="Process_sample-small-01">
+      <bpmndi:BPMNShape id="Shape_t1_intake" bpmnElement="t1_intake">
+        <dc:Bounds x="230" y="100.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_t2_validate" bpmnElement="t2_validate">
+        <dc:Bounds x="490" y="200.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_g1_amount_check" bpmnElement="g1_amount_check">
+        <dc:Bounds x="750" y="300.0" width="60" height="60"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_t3_dual_approval" bpmnElement="t3_dual_approval">
+        <dc:Bounds x="750" y="400.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_t4_po_issue" bpmnElement="t4_po_issue">
+        <dc:Bounds x="1010" y="500.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_f1" bpmnElement="f1">
+        <di:waypoint x="410" y="140.0"/>
+        <di:waypoint x="490" y="240.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f2" bpmnElement="f2">
+        <di:waypoint x="670" y="240.0"/>
+        <di:waypoint x="750" y="330.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f3" bpmnElement="f3">
+        <di:waypoint x="810" y="330.0"/>
+        <di:waypoint x="750" y="440.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f4" bpmnElement="f4">
+        <di:waypoint x="810" y="330.0"/>
+        <di:waypoint x="1010" y="540.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f5" bpmnElement="f5">
+        <di:waypoint x="930" y="440.0"/>
+        <di:waypoint x="1010" y="540.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

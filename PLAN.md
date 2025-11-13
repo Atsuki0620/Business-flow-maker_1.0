@@ -1,6 +1,6 @@
 ﻿# Business-flow-maker 計画書
 
-[最終更新日時] 2025年11月10日 22:24 JST
+[最終更新日時] 2025年11月13日 JST
 
 ## 参照ドキュメント
 - [README.md](README.md) - プロジェクト概要とクイックスタート
@@ -40,9 +40,9 @@
   - **実装構造**: `src/core/generator.py` + `src/visualizers/`（HTML/SVG、Mermaid生成）
 - **レイヤー2（BPMN 準拠の確定形）**
   - 独自JSONを BPMN 2.0 XML へ変換する。
-  - bpmn-js で `.bpmn` を表示し最終確認する。
-  - bpmnlint でルールを検証し、SVG/PNG を出力して PPT へ貼り付ける。
-  - **実装構造**: `src/core/bpmn_converter.py`（将来実装）
+  - BPMN準拠のSVG画像を生成し、GitHub上で直接プレビュー可能にする。
+  - 動的座標計算により異なる規模のフローに対応する。
+  - **実装構造**: `src/core/bpmn_converter.py`、`src/core/bpmn_layout.py`、`src/core/bpmn_validator.py`（**v0.40で実装完了**）
 
 ### §2.2 機能要件
 1. **独自JSON生成**：actors, phases, tasks（責任/RACI/handoff_to/systems/notes を含む）、gateways、flows、issues を出力し、曖昧な点は `issues` に列挙する。
@@ -71,10 +71,15 @@
 - ✅ レビュー用チェックリストの自動生成
 - ✅ **runs/ 構造による実行履歴管理**（v0.35〜）
 - ✅ **LLMプロバイダ自動検出**（Azure優先、ダミー値自動無効化）
+- ✅ **BPMN 2.0 XML変換とSVG可視化**（v0.40で実装完了）
+  - JSON→BPMN 2.0 XML変換（lanes, tasks, exclusiveGateway/parallelGateway/inclusiveGateway, sequenceFlow）
+  - BPMN準拠のSVG画像自動生成（GitHub直接プレビュー対応）
+  - 動的座標計算（Sugiyamaアルゴリズムベース）
+  - BPMN 2.0準拠性の自動検証
 
 ### §3.2 将来検討項目
-- JSON→BPMN 変換（lanes, tasks, exclusiveGateway, sequenceFlow）
-- bpmn-js 表示、bpmnlint チェック、SVG/PNG 出力
+- bpmn-js プレビュー機能、bpmnlint チェック連携
+- PNG出力機能（SVG→PNG変換）
 - 入力の高度な正規化／クリーニング、表記ゆれ辞書、ID 採番強化
 - UI フレームワーク固定（Streamlit 等）やコラボ機能
 - PPTX 自動生成（python-pptx 等）
@@ -186,17 +191,28 @@ runs/
 - ✅ **runs/構造導入**: 実行履歴の自動管理
 - ✅ **LLMプロバイダ自動検出**: Azure優先、ダミー値自動無効化
 
-### §6.2 次のステップ（Layer2/BPMN パイプライン実装）
-- JSON→BPMN 2.0 XML 変換モジュールの実装
-  - laneSet（泳線レーン）
-  - task（タスクノード）
-  - exclusiveGateway（排他ゲートウェイ）
-  - sequenceFlow（フロー接続）
-- bpmnlint 連携（BPMN仕様準拠チェック）
-- bpmn-js プレビュー機能
-- SVG/PNG エクスポート手順の定義
+### §6.2 Layer2/BPMN パイプライン実装（v0.40で完了）
+- ✅ JSON→BPMN 2.0 XML 変換モジュールの実装（`src/core/bpmn_converter.py`）
+  - ✅ laneSet（泳線レーン）とcollaboration要素
+  - ✅ userTask/serviceTask（タスクノード）
+  - ✅ exclusiveGateway/parallelGateway/inclusiveGateway
+  - ✅ sequenceFlow（条件付きフロー対応）
+- ✅ 動的座標計算アルゴリズムの実装（`src/core/bpmn_layout.py`）
+  - ✅ Sugiyamaアルゴリズムベースのレイアウトエンジン
+  - ✅ トポロジカルソート、バリセントリック法による交差最小化
+  - ✅ フロー規模に応じた自動スケーリング
+- ✅ BPMN 2.0準拠性検証（`src/core/bpmn_validator.py`）
+  - ✅ 名前空間、構造、ID一意性、参照整合性の検証
+- ✅ BPMN準拠のSVG可視化機能
+  - ✅ GitHub直接プレビュー対応（埋め込みCSSスタイル）
+  - ✅ タスク（角丸矩形）、ゲートウェイ（菱形）の標準表現
+- ✅ runs/構造への完全統合
+  - ✅ 自動出力先決定（flow.bpmn、flow-bpmn.svg）
+  - ✅ info.mdへの実行情報記録
+- ✅ 包括的なテストスイート（`tests/test_bpmn_converter.py`）
+- ✅ サンプル出力の生成（`samples/bpmn/`）
 
-**完了条件**：
+**完了基準達成**：
 - `src/core/bpmn_converter.py` の実装
 - bpmn-js での描画確認
 - bpmnlint 合否検証

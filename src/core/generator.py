@@ -60,6 +60,40 @@ def load_schema(schema_path: pathlib.Path) -> Dict[str, Any]:
     return json.loads(schema_path.read_text(encoding="utf-8"))
 
 
+def _load_few_shot_examples() -> List[Dict[str, str]]:
+    """Few-shot examplesを読み込む。
+
+    Returns:
+        {"user": str, "assistant": str}形式の辞書のリスト
+    """
+    examples = []
+    example_files = [
+        ("samples/input/sample-tiny-01.md", "samples/expected/sample-tiny-01.json"),
+        ("samples/input/sample-small-01.md", "samples/expected/sample-small-01.json"),
+    ]
+
+    for input_file, output_file in example_files:
+        try:
+            example_input_path = pathlib.Path(input_file)
+            example_output_path = pathlib.Path(output_file)
+
+            example_input = example_input_path.read_text(encoding="utf-8")
+            example_output = example_output_path.read_text(encoding="utf-8")
+
+            examples.append({
+                "user": f"以下の業務文書からフローJSONを生成してください:\n\n{example_input}",
+                "assistant": example_output
+            })
+        except FileNotFoundError:
+            logger.warning(f"Few-shot exampleファイルが見つかりません: {input_file}")
+            continue
+
+    if len(examples) == 0:
+        logger.warning("Few-shot exampleファイルが見つかりません。システムプロンプトのみ使用します。")
+
+    return examples
+
+
 def build_messages(input_text: str) -> List[Dict[str, str]]:
     """Few-shot examplesを含むメッセージリストを構築する。
 
@@ -99,28 +133,8 @@ def build_messages(input_text: str) -> List[Dict[str, str]]:
         "6. 出力は純粋な JSON（```マークダウンブロックは不要）\n"
     )
 
-    # Few-shot examples（段階的な複雑度）を読み込む
-    examples = []
-    example_files = [
-        ("samples/input/sample-tiny-01.md", "samples/expected/sample-tiny-01.json"),
-        ("samples/input/sample-small-01.md", "samples/expected/sample-small-01.json"),
-    ]
-
-    for input_file, output_file in example_files:
-        try:
-            example_input_path = pathlib.Path(input_file)
-            example_output_path = pathlib.Path(output_file)
-
-            example_input = example_input_path.read_text(encoding="utf-8")
-            example_output = example_output_path.read_text(encoding="utf-8")
-
-            examples.append({
-                "user": f"以下の業務文書からフローJSONを生成してください:\n\n{example_input}",
-                "assistant": example_output
-            })
-        except FileNotFoundError:
-            logger.warning(f"Few-shot exampleファイルが見つかりません: {input_file}")
-            continue
+    # Few-shot examplesを読み込む
+    examples = _load_few_shot_examples()
 
     # メッセージリストの構築
     messages = [{"role": "system", "content": system_prompt}]
@@ -132,10 +146,6 @@ def build_messages(input_text: str) -> List[Dict[str, str]]:
 
     # 実際のユーザー入力を追加
     messages.append({"role": "user", "content": f"以下の業務文書からフローJSONを生成してください:\n\n{input_text}"})
-
-    # Few-shot exampleが1つも読み込めなかった場合は警告
-    if len(examples) == 0:
-        logger.warning("Few-shot exampleファイルが見つかりません。システムプロンプトのみ使用します。")
 
     return messages
 
@@ -169,12 +179,18 @@ def _pick_identifier(value):
     return str(value)
 
 
-def normalize_flow_document(raw: dict) -> dict:
-    data = dict(raw)
+def _normalize_actors(raw_actors: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
+    """actors配列を正規化し、ルックアップ辞書を返す。
 
+    Args:
+        raw_actors: 生のactors配列
+
+    Returns:
+        (正規化されたactors配列, {name/id -> id}のルックアップ辞書)
+    """
     actors = []
     actor_lookup = {}
-    for idx, actor in enumerate(data.get("actors", []), start=1):
+    for idx, actor in enumerate(raw_actors, start=1):
         name = actor.get("name") or actor.get("title") or actor.get("role") or f"actor_{idx}"
         actor_id = actor.get("id") or _slugify_id(name, "actor", idx)
         actor_type = actor.get("type") or ("system" if "system" in (actor.get("role", "").lower()) else "human")
@@ -184,11 +200,21 @@ def normalize_flow_document(raw: dict) -> dict:
         actors.append(filtered)
         actor_lookup[name] = actor_id
         actor_lookup[actor_id] = actor_id
-    data["actors"] = actors
+    return actors, actor_lookup
 
+
+def _normalize_phases(raw_phases: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
+    """phases配列を正規化し、ルックアップ辞書を返す。
+
+    Args:
+        raw_phases: 生のphases配列
+
+    Returns:
+        (正規化されたphases配列, {name/id -> id}のルックアップ辞書)
+    """
     phases = []
     phase_lookup = {}
-    for idx, phase in enumerate(data.get("phases", []), start=1):
+    for idx, phase in enumerate(raw_phases, start=1):
         name = phase.get("name") or phase.get("title") or f"phase_{idx}"
         phase_id = phase.get("id") or _slugify_id(name, "phase", idx)
         filtered = {"id": phase_id, "name": name}
@@ -197,10 +223,30 @@ def normalize_flow_document(raw: dict) -> dict:
         phases.append(filtered)
         phase_lookup[name] = phase_id
         phase_lookup[phase_id] = phase_id
-    data["phases"] = phases
+    return phases, phase_lookup
 
+
+def _normalize_tasks(
+    raw_tasks: List[Dict[str, Any]],
+    actor_lookup: Dict[str, str],
+    phase_lookup: Dict[str, str],
+    actors: List[Dict[str, Any]],
+    phases: List[Dict[str, Any]]
+) -> List[Dict[str, Any]]:
+    """tasks配列を正規化する。
+
+    Args:
+        raw_tasks: 生のtasks配列
+        actor_lookup: actorのルックアップ辞書
+        phase_lookup: phaseのルックアップ辞書
+        actors: 正規化されたactors配列（フォールバック用）
+        phases: 正規化されたphases配列（フォールバック用）
+
+    Returns:
+        正規化されたtasks配列
+    """
     tasks = []
-    for idx, task in enumerate(data.get("tasks", []), start=1):
+    for idx, task in enumerate(raw_tasks, start=1):
         name = task.get("name") or task.get("title") or f"task_{idx}"
         task_id = task.get("id") or _slugify_id(name, "task", idx)
         phase_key = _pick_identifier(task.get("phase_id") or task.get("phase"))
@@ -224,10 +270,20 @@ def normalize_flow_document(raw: dict) -> dict:
         if "notes" in task:
             entry["notes"] = task["notes"]
         tasks.append(entry)
-    data["tasks"] = tasks
+    return tasks
 
+
+def _normalize_flows(raw_flows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """flows配列を正規化する。
+
+    Args:
+        raw_flows: 生のflows配列
+
+    Returns:
+        正規化されたflows配列（空のfrom/toを持つフローは除外）
+    """
     flows = []
-    for idx, flow in enumerate(data.get("flows", []), start=1):
+    for idx, flow in enumerate(raw_flows, start=1):
         flow_id = flow.get("id") or f"flow_{idx}"
         entry = {
             "id": flow_id,
@@ -239,22 +295,41 @@ def normalize_flow_document(raw: dict) -> dict:
         if flow.get("notes"):
             entry["notes"] = flow["notes"]
         flows.append(entry)
-    flows = [f for f in flows if f["from"] and f["to"]]
-    data["flows"] = flows
+    return [f for f in flows if f["from"] and f["to"]]
 
+
+def _normalize_gateways(raw_gateways: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """gateways配列を正規化する。
+
+    Args:
+        raw_gateways: 生のgateways配列
+
+    Returns:
+        正規化されたgateways配列
+    """
     gateways = []
-    for idx, gateway in enumerate(data.get("gateways", []), start=1):
+    for idx, gateway in enumerate(raw_gateways, start=1):
         name = gateway.get("name") or gateway.get("title") or f"gateway_{idx}"
         gateway_id = gateway.get("id") or _slugify_id(name, "gateway", idx)
         entry = {"id": gateway_id, "name": name, "type": gateway.get("type", "exclusive")}
         if "notes" in gateway:
             entry["notes"] = gateway["notes"]
         gateways.append(entry)
-    data["gateways"] = gateways
+    return gateways
 
+
+def _normalize_issues(raw_issues: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """issues配列を正規化する。
+
+    Args:
+        raw_issues: 生のissues配列
+
+    Returns:
+        正規化されたissues配列
+    """
     issues = []
     severity_choices = {"info", "warning", "critical"}
-    for idx, issue in enumerate(data.get("issues", []), start=1):
+    for idx, issue in enumerate(raw_issues, start=1):
         issue_id = issue.get("id") or f"issue_{idx}"
         note = issue.get("note") or issue.get("description") or "UNKNOWN"
         entry = {"id": issue_id, "note": note}
@@ -264,8 +339,18 @@ def normalize_flow_document(raw: dict) -> dict:
             if sev in severity_choices:
                 entry["severity"] = sev
         issues.append(entry)
-    data["issues"] = issues
+    return issues
 
+
+def _normalize_metadata(data: Dict[str, Any]) -> Dict[str, Any]:
+    """metadataを正規化する。
+
+    Args:
+        data: 生のドキュメント全体（metadataフィールドとトップレベルのレガシーキーを含む）
+
+    Returns:
+        正規化されたmetadata辞書
+    """
     metadata = data.get("metadata", {})
     if not isinstance(metadata, dict):
         metadata = {}
@@ -280,14 +365,57 @@ def normalize_flow_document(raw: dict) -> dict:
     generation_info = metadata.get("generation") if isinstance(metadata.get("generation"), dict) else None
 
     today = date.today().isoformat()
-    data["metadata"] = {
+    result = {
         "id": metadata.get("id", "sample-flow"),
         "title": metadata.get("title", metadata.get("name", "LLM generated flow")),
         "source": metadata.get("source", "samples/input/sample-small-01.md"),
         "last_updated": metadata.get("last_updated", today),
     }
     if generation_info:
-        data["metadata"]["generation"] = generation_info
+        result["generation"] = generation_info
+
+    return result
+
+
+def normalize_flow_document(raw: dict) -> dict:
+    """LLM出力を正規化してスキーマに準拠した形式に整形する。
+
+    Args:
+        raw: LLMからの生出力
+
+    Returns:
+        正規化されたフローJSON
+    """
+    data = dict(raw)
+
+    # actors正規化
+    actors, actor_lookup = _normalize_actors(data.get("actors", []))
+    data["actors"] = actors
+
+    # phases正規化
+    phases, phase_lookup = _normalize_phases(data.get("phases", []))
+    data["phases"] = phases
+
+    # tasks正規化
+    data["tasks"] = _normalize_tasks(
+        data.get("tasks", []),
+        actor_lookup,
+        phase_lookup,
+        actors,
+        phases
+    )
+
+    # flows正規化
+    data["flows"] = _normalize_flows(data.get("flows", []))
+
+    # gateways正規化
+    data["gateways"] = _normalize_gateways(data.get("gateways", []))
+
+    # issues正規化
+    data["issues"] = _normalize_issues(data.get("issues", []))
+
+    # metadata正規化
+    data["metadata"] = _normalize_metadata(data)
 
     return data
 

@@ -1,6 +1,6 @@
 # CHANGELOG
 
-[最終更新日時] 2025年11月12日 00:35 JST
+[最終更新日時] 2025年11月13日 JST
 
 本ファイルは Business-flow-maker プロジェクトの全ての重要な変更を記録します。
 
@@ -318,6 +318,122 @@
 
 #### ドキュメント
 - README.md にCONCEPTS.mdへの参照を追加予定
+
+---
+
+### [v0.40] - 2025-11-13 JST
+
+#### 追加（Layer2: BPMN 2.0準拠出力・可視化機能）
+- **BPMN 2.0 XML出力機能の実装**
+  - JSON形式の業務フローデータからBPMN 2.0準拠のXMLを生成
+  - 正しい名前空間定義（bpmn2、bpmndi、dc、di、xsi）
+  - collaboration要素によるスイムレーン構造の実装
+  - process要素とlaneSet要素の生成
+  - userTask/serviceTaskの区別（タスクタイプに応じた要素生成）
+  - exclusiveGateway/parallelGateway/inclusiveGatewayの完全サポート
+  - sequenceFlow要素の生成（条件付きフロー対応）
+  - BPMNDiagram/BPMNPlane/BPMNShape/BPMNEdgeによる図形情報の完全実装
+
+- **動的座標計算アルゴリズムの実装**
+  - **src/core/bpmn_layout.py**: Sugiyamaアルゴリズムベースのレイアウトエンジン
+    - 第1段階: トポロジカルソートによる階層決定
+    - 第2段階: バリセントリック法による交差最小化
+    - 第3段階: 水平座標の動的割り当て
+    - 第4段階: エッジ経路の計算
+  - 固定座標値を完全に排除し、すべて動的計算
+  - フロー規模に応じた自動スケーリング（ノード数の平方根に比例）
+  - 日本語ラベル長を考慮した幅調整
+  - レーン内最大ノード数に応じた高さ調整
+
+- **SVG可視化機能の実装**
+  - **src/core/bpmn_converter.py**: BPMN準拠のSVG画像生成
+    - タスク: 角丸矩形（userTask=白、serviceTask=薄青）
+    - ゲートウェイ: 菱形（exclusive=×、parallel=+、inclusive=○）
+    - シーケンスフロー: 矢印付き線（条件ラベル対応）
+    - スイムレーン: 背景矩形領域（actor名表示）
+  - GitHub自動プレビュー対応（埋め込みCSSスタイル）
+  - XML宣言付きSVG出力（UTF-8エンコーディング）
+
+- **BPMN 2.0準拠性検証機能の実装**
+  - **src/core/bpmn_validator.py**: 包括的な妥当性検証
+    - 名前空間の検証
+    - 基本構造の検証（definitions、process、collaboration）
+    - ID一意性の検証
+    - 参照整合性の検証（sequenceFlow、BPMNShape、BPMNEdge）
+    - 図形情報の検証（Bounds、waypoint）
+    - 統計情報の取得（tasks、gateways、sequence_flows、lanes、participants）
+
+- **runs構造への完全統合**
+  - 入力JSONがruns/ディレクトリ内にある場合、自動的にoutput/サブディレクトリに出力
+  - `flow.bpmn`: BPMN 2.0 XML形式
+  - `flow-bpmn.svg`: BPMN準拠のSVG画像（既存のflow.svgと区別）
+  - `src/utils/run_manager.py`のupdate_info_md関数を使用してinfo.md自動更新
+  - BPMN変換の実行情報（出力ファイルパス・サイズ、検証結果、SVG生成状況）を記録
+  - runs構造を使用しない場合の後方互換性維持
+
+- **CLI機能の実装**
+  - `python -m src.core.bpmn_converter` で実行可能
+  - コマンドライン引数:
+    - `--input`: 入力JSONファイルパス（必須）
+    - `--output`: 出力BPMNファイルパス（省略時は自動決定）
+    - `--svg-output`: SVGファイルの出力先（省略時は自動決定）
+    - `--no-svg`: SVG生成を無効化
+    - `--validate`: 生成後の妥当性検証実行（デフォルト: 有効）
+    - `--debug`: デバッグ情報出力
+  - runs/構造の自動検出と適切な出力先決定
+
+- **包括的なテストスイートの実装**
+  - **tests/test_bpmn_converter.py**: 単体テストと統合テスト
+    - レイアウト計算の動作確認
+    - BPMN XML変換の妥当性検証
+    - SVG生成の正常動作確認
+    - 異なる規模のフローに対するテスト（tiny/small/medium/large）
+    - エッジケースの処理（空のフロー、不正なXML）
+    - 実際のサンプルファイルを使用した統合テスト
+
+- **サンプル出力の生成**
+  - **samples/bpmn/**: 代表的な成果物を配置
+    - sample-tiny-01.bpmn/svg
+    - sample-small-01.bpmn/svg
+    - sample-medium-01.bpmn/svg
+    - sample-large-01.bpmn/svg
+  - samples/bpmn/README.md: 日本語で目的と使用方法を説明
+  - GitHubで成果物が直接プレビュー可能
+
+#### 技術仕様
+- **BPMN準拠**: OMG BPMN 2.0 Specification完全準拠
+- **エンコーディング**: UTF-8
+- **依存**: Python標準ライブラリのみ（xml.etree.ElementTree使用）
+- **決定論的処理**: 同一JSON入力に対して常に同一のBPMN/SVG出力
+- **LLM不使用**: 純粋な構造変換処理として実装
+
+#### 変換マッピング仕様
+- actors → participant要素およびlane要素（スイムレーン構造）
+- tasks → userTask（人的作業）またはserviceTask（システム処理）要素
+- gateways → exclusiveGateway（排他）、parallelGateway（並列）、inclusiveGateway（包含）要素
+- flows → sequenceFlow要素（条件付き分岐を含む）
+- phases → タスクの配置順序として反映
+
+#### ドキュメント
+- すべてのdocstring、コメント、エラーメッセージを日本語で記述
+- 包括的なREADME.md（samples/bpmn/）
+- CHANGELOG.md、README.md、PLAN.mdの更新
+
+#### 成功基準達成
+- ✓ sample-tiny-01.jsonから有効なBPMN 2.0 XMLが生成される
+- ✓ SVGファイルが自動生成され、ブラウザで正しく表示される
+- ✓ 生成されたXMLがBPMN 2.0スキーマに完全準拠している
+- ✓ 座標が動的に計算され、異なる規模のフローでも適切に配置される
+- ✓ スイムレーン構造が正しく表現される
+- ✓ ゲートウェイによる分岐がBPMN標準通りに実装される
+- ✓ runs構造での実行時に適切な出力先が自動決定される
+- ✓ info.mdに実行情報が日本語で適切に記録される
+- ✓ GitHubのWebインターフェースでSVGファイルが直接プレビュー可能
+- ✓ すべてのドキュメント、コメント、メッセージが日本語で記述されている
+
+#### 既知の制限（今回のスコープ外）
+- エクスポート機能（PNG出力等）は未実装
+- bpmn-jsプレビュー機能は未実装
 
 ---
 

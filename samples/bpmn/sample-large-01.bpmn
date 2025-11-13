@@ -1,0 +1,88 @@
+<?xml version="1.0" ?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="Definitions_sample-large-01" targetNamespace="http://bpmn.io/schema/bpmn" exporter="Business-flow-maker" exporterVersion="1.0">
+  <bpmn2:collaboration id="Collaboration_sample-large-01">
+    <bpmn2:participant id="Participant_regional_na" name="北米運用チーム" processRef="Process_regional_na"/>
+    <bpmn2:participant id="Participant_regional_emea" name="EMEA運用チーム" processRef="Process_regional_emea"/>
+    <bpmn2:participant id="Participant_regional_apac" name="APAC運用チーム" processRef="Process_regional_apac"/>
+    <bpmn2:participant id="Participant_cab_board" name="CAB" processRef="Process_cab_board"/>
+  </bpmn2:collaboration>
+  <bpmn2:process id="Process_sample-large-01" name="グローバル IT 変更管理" isExecutable="false">
+    <bpmn2:laneSet id="LaneSet_1">
+      <bpmn2:lane id="Lane_regional_na" name="北米運用チーム">
+        <bpmn2:flowNodeRef>t1_rfc_submit</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+      <bpmn2:lane id="Lane_regional_emea" name="EMEA運用チーム">
+        <bpmn2:flowNodeRef>t2_region_review</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+      <bpmn2:lane id="Lane_regional_apac" name="APAC運用チーム">
+        <bpmn2:flowNodeRef>t3_global_sync</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+      <bpmn2:lane id="Lane_cab_board" name="CAB">
+        <bpmn2:flowNodeRef>t4_execute</bpmn2:flowNodeRef>
+      </bpmn2:lane>
+    </bpmn2:laneSet>
+    <bpmn2:userTask id="t1_rfc_submit" name="変更リクエスト登録"/>
+    <bpmn2:userTask id="t2_region_review" name="地域代表レビュー"/>
+    <bpmn2:userTask id="t3_global_sync" name="CAB レビュー準備"/>
+    <bpmn2:userTask id="t4_execute" name="変更実行と結果記録"/>
+    <bpmn2:exclusiveGateway id="g1_risk_level" name="リスクレベル判定"/>
+    <bpmn2:exclusiveGateway id="g2_emergency" name="緊急変更か"/>
+    <bpmn2:sequenceFlow id="f1" sourceRef="t1_rfc_submit" targetRef="t2_region_review"/>
+    <bpmn2:sequenceFlow id="f2" sourceRef="t2_region_review" targetRef="g1_risk_level"/>
+    <bpmn2:sequenceFlow id="f3" sourceRef="g1_risk_level" targetRef="t3_global_sync" name="高リスク"/>
+    <bpmn2:sequenceFlow id="f4" sourceRef="g1_risk_level" targetRef="g2_emergency" name="低〜中リスク"/>
+    <bpmn2:sequenceFlow id="f5" sourceRef="g2_emergency" targetRef="t4_execute" name="緊急"/>
+    <bpmn2:sequenceFlow id="f6" sourceRef="t3_global_sync" targetRef="t4_execute"/>
+    <bpmn2:sequenceFlow id="f7" sourceRef="g2_emergency" targetRef="t3_global_sync" name="通常"/>
+  </bpmn2:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_sample-large-01">
+    <bpmndi:BPMNPlane id="BPMNPlane_sample-large-01" bpmnElement="Process_sample-large-01">
+      <bpmndi:BPMNShape id="Shape_t1_rfc_submit" bpmnElement="t1_rfc_submit">
+        <dc:Bounds x="230" y="100.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_t2_region_review" bpmnElement="t2_region_review">
+        <dc:Bounds x="490" y="300.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_g1_risk_level" bpmnElement="g1_risk_level">
+        <dc:Bounds x="750" y="450.0" width="60" height="60"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_t3_global_sync" bpmnElement="t3_global_sync">
+        <dc:Bounds x="750" y="550.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_g2_emergency" bpmnElement="g2_emergency">
+        <dc:Bounds x="1010" y="650.0" width="60" height="60"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_t4_execute" bpmnElement="t4_execute">
+        <dc:Bounds x="1010" y="750.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_f1" bpmnElement="f1">
+        <di:waypoint x="410" y="140.0"/>
+        <di:waypoint x="490" y="340.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f2" bpmnElement="f2">
+        <di:waypoint x="670" y="340.0"/>
+        <di:waypoint x="750" y="480.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f3" bpmnElement="f3">
+        <di:waypoint x="810" y="480.0"/>
+        <di:waypoint x="750" y="590.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f4" bpmnElement="f4">
+        <di:waypoint x="810" y="480.0"/>
+        <di:waypoint x="1010" y="680.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f5" bpmnElement="f5">
+        <di:waypoint x="1070" y="680.0"/>
+        <di:waypoint x="1010" y="790.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f6" bpmnElement="f6">
+        <di:waypoint x="930" y="590.0"/>
+        <di:waypoint x="1010" y="790.0"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_f7" bpmnElement="f7">
+        <di:waypoint x="1070" y="680.0"/>
+        <di:waypoint x="750" y="590.0"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

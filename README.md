@@ -9,7 +9,7 @@
 - マニュアルや業務文書から業務フローの独自JSON（actors/phases/tasks/flows/issues）を生成
 - HTML+SVG による泳線図（Swimlane）の可視化
 - Mermaid フローチャート形式への変換
-- BPMN 2.0 XML への変換（将来実装）
+- **BPMN 2.0 XML への変換とSVG可視化（v0.40で実装完了）**
 - JSON Schema による厳格な検証とレビューチェックリスト自動生成
 
 ### 対象ユーザー
@@ -156,6 +156,44 @@ python -m src.visualizers.mermaid_visualizer \
 
 生成された `flow.mmd` は Mermaid 対応エディタやブラウザ拡張で表示できます。
 
+### 4. BPMN 2.0 XML変換とSVG可視化
+
+業務フローをBPMN 2.0準拠のXMLとSVG画像に変換します。
+
+```bash
+# runs/構造のJSONを指定（info.mdに自動記録）
+python -m src.core.bpmn_converter \
+  --input runs/20251110_123456_sample-small-01/output/flow.json \
+  --validate
+
+# 手動で出力先を指定
+python -m src.core.bpmn_converter \
+  --input samples/expected/sample-tiny-01.json \
+  --output output/flow.bpmn \
+  --svg-output output/flow-bpmn.svg \
+  --validate
+
+# デバッグモードで詳細情報を表示
+python -m src.core.bpmn_converter \
+  --input samples/expected/sample-tiny-01.json \
+  --validate \
+  --debug
+```
+
+**主な機能**:
+- JSON → BPMN 2.0 XML 変換（OMG BPMN 2.0 Specification完全準拠）
+- SVG画像の自動生成（GitHub上で直接プレビュー可能）
+- スイムレーン構造の実装（actors → participant/lane要素）
+- ゲートウェイのサポート（exclusive/parallel/inclusive）
+- 動的座標計算（Sugiyamaアルゴリズムベース）
+- BPMN 2.0準拠性の自動検証
+
+**生成されるファイル**:
+- `flow.bpmn`: BPMN 2.0 XML（Camunda Modeler等で開けます）
+- `flow-bpmn.svg`: BPMN準拠のSVG画像（ブラウザで表示可能）
+
+**サンプル出力**: [samples/bpmn/](samples/bpmn/) ディレクトリにサンプル出力があります。
+
 ---
 
 ## プロジェクト構成
@@ -166,7 +204,9 @@ Business-flow-maker_1.0/
 │   ├── core/              # JSON生成、BPMN変換の中核機能
 │   │   ├── generator.py
 │   │   ├── llm_client.py
-│   │   └── bpmn_converter.py
+│   │   ├── bpmn_converter.py
+│   │   ├── bpmn_layout.py
+│   │   └── bpmn_validator.py
 │   ├── visualizers/       # HTML/SVG、Mermaid生成
 │   │   ├── html_visualizer.py
 │   │   └── mermaid_visualizer.py
@@ -174,6 +214,9 @@ Business-flow-maker_1.0/
 │       └── run_manager.py
 ├── schemas/               # JSON Schema定義
 ├── samples/               # 入力・出力サンプル
+│   ├── input/             # 入力文書サンプル
+│   ├── expected/          # 期待されるJSON出力
+│   └── bpmn/              # BPMN出力サンプル（v0.40追加）
 ├── runs/                  # 実行履歴の自動管理（初回実行時に自動生成）
 ├── tests/                 # pytestによる自動テスト
 ├── PLAN.md                # 開発計画書（詳細設計）

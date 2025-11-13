@@ -1,11 +1,11 @@
 """
-BPMN layout calculator for dynamic coordinate generation.
+動的座標生成のためのBPMNレイアウト計算機。
 
-This module implements a hierarchical layout algorithm based on Sugiyama principles:
-1. Layer assignment (topological sort)
-2. Crossing minimization (barycentric method)
-3. Coordinate assignment (dynamic spacing)
-4. Edge routing (Manhattan routing)
+このモジュールはSugiyama原理に基づく階層的レイアウトアルゴリズムを実装します:
+1. レイヤー割り当て（トポロジカルソート）
+2. 交差最小化（重心法）
+3. 座標割り当て（動的間隔調整）
+4. エッジルーティング（マンハッタンルーティング）
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class BPMNNodeLayout:
-    """Layout information for a BPMN node (task or gateway)."""
+    """BPMNノード（タスクまたはゲートウェイ）のレイアウト情報。"""
     node_id: str
     label: str
     x: float
@@ -35,32 +35,32 @@ class BPMNNodeLayout:
 
 @dataclass
 class BPMNEdgeLayout:
-    """Layout information for a BPMN edge (sequence flow)."""
+    """BPMNエッジ（シーケンスフロー）のレイアウト情報。"""
     flow_id: str
     waypoints: List[Tuple[float, float]]
     condition: str = ""
 
 
-# BPMN 2.0 standard dimensions (in pixels for diagram interchange)
+# BPMN 2.0標準寸法（Diagram Interchange用のピクセル単位）
 BPMN_TASK_WIDTH = 100
 BPMN_TASK_HEIGHT = 80
 BPMN_GATEWAY_SIZE = 50
 BPMN_LANE_MIN_HEIGHT = 150
-BPMN_LANE_HEADER_WIDTH = 30  # Rotated text header
-BPMN_HORIZONTAL_SPACING = 80  # Between nodes in same lane
-BPMN_VERTICAL_SPACING = 40   # Between nodes stacked vertically
+BPMN_LANE_HEADER_WIDTH = 30  # 回転テキストヘッダー
+BPMN_HORIZONTAL_SPACING = 80  # 同一レーン内のノード間
+BPMN_VERTICAL_SPACING = 40   # 縦に積まれたノード間
 BPMN_MARGIN = 50
 
 
 def calculate_layout(flow: Dict[str, Any]) -> Tuple[Dict[str, BPMNNodeLayout], List[BPMNEdgeLayout], Dict[str, float]]:
     """
-    Calculate BPMN layout positions for all nodes and edges.
+    すべてのノードとエッジのBPMNレイアウト位置を計算する。
 
     Args:
-        flow: Flow document dictionary with actors, phases, tasks, gateways, flows
+        flow: actors、phases、tasks、gateways、flowsを含むフロードキュメント辞書
 
     Returns:
-        Tuple of (node_positions, edge_waypoints, lane_heights)
+        (node_positions, edge_waypoints, lane_heights)のタプル
     """
     actors = flow.get("actors", [])
     phases = flow.get("phases", [])
@@ -68,22 +68,22 @@ def calculate_layout(flow: Dict[str, Any]) -> Tuple[Dict[str, BPMNNodeLayout], L
     gateways = flow.get("gateways", [])
     flows = flow.get("flows", [])
 
-    # Build actor and phase ordering
+    # アクターとフェーズの順序を構築
     actor_order = {actor["id"]: idx for idx, actor in enumerate(actors)}
     phase_order = {phase["id"]: idx for idx, phase in enumerate(phases)}
 
-    # Calculate positions using hierarchical layout
+    # 階層的レイアウトを使用して位置を計算
     node_positions = _calculate_node_positions(
         tasks, gateways, flows, actor_order, phase_order
     )
 
-    # Calculate lane heights based on node distribution
+    # ノード分布に基づいてレーン高さを計算
     lane_heights = _calculate_lane_heights(node_positions, actor_order)
 
-    # Adjust Y coordinates based on calculated lane heights
+    # 計算されたレーン高さに基づいてY座標を調整
     _adjust_y_coordinates(node_positions, lane_heights, actor_order)
 
-    # Calculate edge waypoints
+    # エッジのウェイポイントを計算
     edge_waypoints = _calculate_edge_waypoints(flows, node_positions)
 
     return node_positions, edge_waypoints, lane_heights
@@ -96,16 +96,16 @@ def _calculate_node_positions(
     actor_order: Dict[str, int],
     phase_order: Dict[str, int],
 ) -> Dict[str, BPMNNodeLayout]:
-    """Calculate initial node positions based on actor and phase."""
+    """アクターとフェーズに基づいて初期ノード位置を計算する。"""
     positions: Dict[str, BPMNNodeLayout] = {}
 
-    # Count nodes per (actor_id, phase_id) group for collision avoidance
+    # 衝突回避のために(actor_id, phase_id)グループごとのノード数をカウント
     group_counts: Dict[Tuple[str, str], int] = defaultdict(int)
     for task in tasks:
         group_key = (task.get("actor_id", ""), task.get("phase_id", ""))
         group_counts[group_key] += 1
 
-    # Position tasks
+    # タスクの位置決定
     task_counters: Dict[Tuple[str, str], int] = defaultdict(int)
     for task in tasks:
         actor_id = task.get("actor_id", "")
@@ -113,22 +113,22 @@ def _calculate_node_positions(
         actor_idx = actor_order.get(actor_id, 0)
         phase_idx = phase_order.get(phase_id, 0)
 
-        # Get task order within this (actor, phase) group
+        # この(actor, phase)グループ内のタスク順序を取得
         group_key = (actor_id, phase_id)
         task_order = task_counters[group_key]
         task_counters[group_key] += 1
         total_tasks = group_counts[group_key]
 
-        # Calculate X position (horizontal - by phase)
+        # X位置を計算（水平方向 - フェーズ別）
         x = BPMN_MARGIN + BPMN_LANE_HEADER_WIDTH + phase_idx * (BPMN_TASK_WIDTH + BPMN_HORIZONTAL_SPACING)
 
-        # Calculate Y position (vertical - by actor, with offset for multiple tasks)
-        # Y will be adjusted later based on lane heights
+        # Y位置を計算（垂直方向 - アクター別、複数タスクの場合はオフセット）
+        # Yは後でレーン高さに基づいて調整される
         y_offset = task_order * (BPMN_TASK_HEIGHT + BPMN_VERTICAL_SPACING)
         y_center_adjustment = (total_tasks - 1) * (BPMN_TASK_HEIGHT + BPMN_VERTICAL_SPACING) / 2
         y = y_offset - y_center_adjustment
 
-        # Determine width based on label length (scalability)
+        # ラベル長に基づいて幅を決定（スケーラビリティ）
         label = task.get("name", "")
         width = max(BPMN_TASK_WIDTH, min(200, len(label) * 8))
 
@@ -136,7 +136,7 @@ def _calculate_node_positions(
             node_id=task["id"],
             label=label,
             x=x,
-            y=y,  # Temporary, will be adjusted
+            y=y,  # 一時的、後で調整される
             width=width,
             height=BPMN_TASK_HEIGHT,
             kind="task",
@@ -144,16 +144,16 @@ def _calculate_node_positions(
             phase_id=phase_id,
         )
 
-    # Position gateways by inferring their location from connected nodes
+    # 接続されたノードからゲートウェイの位置を推測して配置
     for gateway in gateways:
         gateway_id = gateway["id"]
         actor_id, phase_id = _infer_gateway_position(gateway_id, flows, positions, actor_order, phase_order)
         actor_idx = actor_order.get(actor_id, 0)
         phase_idx = phase_order.get(phase_id, 0)
 
-        # Position gateway between phases if it's a branching point
+        # 分岐点の場合、フェーズ間にゲートウェイを配置
         x = BPMN_MARGIN + BPMN_LANE_HEADER_WIDTH + phase_idx * (BPMN_TASK_WIDTH + BPMN_HORIZONTAL_SPACING) + BPMN_TASK_WIDTH // 2
-        y = 0  # Will be adjusted based on lane height
+        y = 0  # レーン高さに基づいて調整される
 
         positions[gateway_id] = BPMNNodeLayout(
             node_id=gateway_id,
@@ -177,8 +177,8 @@ def _infer_gateway_position(
     actor_order: Dict[str, int],
     phase_order: Dict[str, int],
 ) -> Tuple[str, str]:
-    """Infer gateway position based on connected tasks."""
-    # Find connected nodes
+    """接続されたタスクに基づいてゲートウェイの位置を推測する。"""
+    # 接続されたノードを検索
     connected_nodes: List[BPMNNodeLayout] = []
     for flow in flows:
         if flow["from"] == gateway_id and flow["to"] in positions:
@@ -187,12 +187,12 @@ def _infer_gateway_position(
             connected_nodes.append(positions[flow["from"]])
 
     if not connected_nodes:
-        # Default to first actor and phase
+        # デフォルトで最初のアクターとフェーズを使用
         first_actor = list(actor_order.keys())[0] if actor_order else ""
         first_phase = list(phase_order.keys())[0] if phase_order else ""
         return first_actor, first_phase
 
-    # Use the most common actor and average phase
+    # 最も一般的なアクターと平均フェーズを使用
     actor_counts = defaultdict(int)
     phase_indices = []
     for node in connected_nodes:
@@ -211,31 +211,31 @@ def _calculate_lane_heights(
     positions: Dict[str, BPMNNodeLayout],
     actor_order: Dict[str, int],
 ) -> Dict[str, float]:
-    """Calculate height for each lane based on node distribution."""
+    """ノード分布に基づいて各レーンの高さを計算する。"""
     lane_heights: Dict[str, float] = {}
 
-    # Group nodes by actor
+    # ノードをアクター別にグループ化
     nodes_by_actor: Dict[str, List[BPMNNodeLayout]] = defaultdict(list)
     for node in positions.values():
         nodes_by_actor[node.actor_id].append(node)
 
-    # Calculate height for each actor lane
+    # 各アクターレーンの高さを計算
     for actor_id, nodes in nodes_by_actor.items():
         if not nodes:
             lane_heights[actor_id] = BPMN_LANE_MIN_HEIGHT
             continue
 
-        # Find the maximum vertical extent
+        # 最大垂直範囲を検索
         max_extent = 0
         for node in nodes:
             extent = abs(node.y) + node.height
             max_extent = max(max_extent, extent)
 
-        # Add padding
+        # パディングを追加
         height = max(BPMN_LANE_MIN_HEIGHT, max_extent + BPMN_VERTICAL_SPACING * 2)
         lane_heights[actor_id] = height
 
-    # Ensure all actors have a height
+    # すべてのアクターが高さを持つことを保証
     for actor_id in actor_order.keys():
         if actor_id not in lane_heights:
             lane_heights[actor_id] = BPMN_LANE_MIN_HEIGHT
@@ -248,20 +248,20 @@ def _adjust_y_coordinates(
     lane_heights: Dict[str, float],
     actor_order: Dict[str, int],
 ) -> None:
-    """Adjust Y coordinates based on calculated lane heights and positions."""
-    # Calculate cumulative lane offsets
+    """計算されたレーン高さと位置に基づいてY座標を調整する。"""
+    # レーンの累積オフセットを計算
     lane_offsets: Dict[str, float] = {}
     cumulative_offset = BPMN_MARGIN
     for actor_id in sorted(actor_order.keys(), key=lambda a: actor_order[a]):
         lane_offsets[actor_id] = cumulative_offset
         cumulative_offset += lane_heights.get(actor_id, BPMN_LANE_MIN_HEIGHT)
 
-    # Adjust each node's Y coordinate
+    # 各ノードのY座標を調整
     for node in positions.values():
         lane_offset = lane_offsets.get(node.actor_id, BPMN_MARGIN)
         lane_height = lane_heights.get(node.actor_id, BPMN_LANE_MIN_HEIGHT)
 
-        # Center within lane
+        # レーン内で中央揃え
         lane_center = lane_offset + lane_height / 2
         node.y = lane_center + node.y
 
@@ -270,7 +270,7 @@ def _calculate_edge_waypoints(
     flows: List[Dict[str, Any]],
     positions: Dict[str, BPMNNodeLayout],
 ) -> List[BPMNEdgeLayout]:
-    """Calculate waypoints for edges using Manhattan routing."""
+    """マンハッタンルーティングを使用してエッジのウェイポイントを計算する。"""
     edge_layouts: List[BPMNEdgeLayout] = []
 
     for flow in flows:
@@ -281,16 +281,16 @@ def _calculate_edge_waypoints(
             logger.warning(f"Flow {flow.get('id')} references missing nodes: from={flow['from']}, to={flow['to']}")
             continue
 
-        # Calculate connection points
-        # From: right edge of source node
+        # 接続点を計算
+        # From: ソースノードの右端
         from_x = from_node.x + from_node.width
         from_y = from_node.y + from_node.height / 2
 
-        # To: left edge of target node
+        # To: ターゲットノードの左端
         to_x = to_node.x
         to_y = to_node.y + to_node.height / 2
 
-        # Simple Manhattan routing with 2 waypoints
+        # 2つのウェイポイントを持つシンプルなマンハッタンルーティング
         waypoints = [
             (from_x, from_y),
             (to_x, to_y),
@@ -310,15 +310,15 @@ def calculate_diagram_bounds(
     lane_heights: Dict[str, float],
     actor_order: Dict[str, int],
 ) -> Tuple[float, float]:
-    """Calculate the total bounds of the diagram."""
+    """ダイアグラムの全体範囲を計算する。"""
     if not positions:
-        return 800, 600  # Default size
+        return 800, 600  # デフォルトサイズ
 
-    # Calculate width
+    # 幅を計算
     max_x = max((node.x + node.width for node in positions.values()), default=0)
     width = max_x + BPMN_MARGIN
 
-    # Calculate height
+    # 高さを計算
     total_height = BPMN_MARGIN
     for actor_id in sorted(actor_order.keys(), key=lambda a: actor_order[a]):
         total_height += lane_heights.get(actor_id, BPMN_LANE_MIN_HEIGHT)

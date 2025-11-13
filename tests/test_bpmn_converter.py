@@ -1,12 +1,12 @@
 """
-Tests for BPMN 2.0 converter functionality.
+BPMN 2.0コンバーター機能のテスト。
 
-This test suite verifies:
-- Basic conversion functionality
-- XML schema validity
-- Coordinate calculation
-- Edge cases (single task, no gateways, complex flows)
-- Different scale flows (tiny, small, medium)
+このテストスイートは以下を検証します:
+- 基本的な変換機能
+- XMLスキーマの妥当性
+- 座標計算
+- エッジケース（単一タスク、ゲートウェイなし、複雑なフロー）
+- 異なる規模のフロー（tiny、small、medium）
 """
 
 import json
@@ -21,7 +21,7 @@ from src.core.bpmn_layout import calculate_layout
 from src.core.bpmn_validator import validate_bpmn
 
 
-# BPMN namespaces
+# BPMN名前空間
 BPMN_NS = "{http://www.omg.org/spec/BPMN/20100524/MODEL}"
 BPMNDI_NS = "{http://www.omg.org/spec/BPMN/20100524/DI}"
 DC_NS = "{http://www.omg.org/spec/DD/20100524/DC}"
@@ -30,13 +30,13 @@ DI_NS = "{http://www.omg.org/spec/DD/20100524/DI}"
 
 @pytest.fixture
 def sample_tiny_01():
-    """Load sample-tiny-01.json for testing."""
+    """テスト用にsample-tiny-01.jsonを読み込む。"""
     return load_flow_json(Path("samples/expected/sample-tiny-01.json"))
 
 
 @pytest.fixture
 def minimal_flow():
-    """Create a minimal flow for edge case testing."""
+    """エッジケーステスト用の最小限のフローを作成する。"""
     return {
         "metadata": {"id": "minimal", "title": "Minimal Flow"},
         "actors": [{"id": "actor_1", "name": "Actor 1", "type": "human"}],
@@ -58,7 +58,7 @@ def minimal_flow():
 
 @pytest.fixture
 def flow_with_gateway():
-    """Create a flow with exclusive gateway."""
+    """排他ゲートウェイを含むフローを作成する。"""
     return {
         "metadata": {"id": "gateway_test", "title": "Gateway Test"},
         "actors": [{"id": "actor_1", "name": "Actor 1", "type": "human"}],
@@ -106,10 +106,10 @@ def flow_with_gateway():
 
 
 class TestBasicConversion:
-    """Test basic conversion functionality."""
+    """基本的な変換機能をテストする。"""
 
     def test_convert_minimal_flow(self, minimal_flow):
-        """Test conversion of minimal flow (single task)."""
+        """最小限のフロー（単一タスク）の変換をテストする。"""
         bpmn_xml = convert_to_bpmn(minimal_flow)
 
         assert bpmn_xml is not None
@@ -118,7 +118,7 @@ class TestBasicConversion:
         assert "Task 1" in bpmn_xml
 
     def test_convert_sample_tiny_01(self, sample_tiny_01):
-        """Test conversion of sample-tiny-01.json."""
+        """sample-tiny-01.jsonの変換をテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
 
         assert bpmn_xml is not None
@@ -128,7 +128,7 @@ class TestBasicConversion:
         assert "10万円判定" in bpmn_xml
 
     def test_convert_with_gateway(self, flow_with_gateway):
-        """Test conversion with gateway."""
+        """ゲートウェイを含む変換をテストする。"""
         bpmn_xml = convert_to_bpmn(flow_with_gateway)
 
         assert bpmn_xml is not None
@@ -138,10 +138,10 @@ class TestBasicConversion:
 
 
 class TestXMLStructure:
-    """Test XML structure and BPMN 2.0 compliance."""
+    """XML構造とBPMN 2.0準拠をテストする。"""
 
     def test_root_element(self, sample_tiny_01):
-        """Test root element is definitions."""
+        """ルート要素がdefinitionsであることをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -150,7 +150,7 @@ class TestXMLStructure:
         assert "targetNamespace" in root.attrib
 
     def test_namespaces(self, sample_tiny_01):
-        """Test required namespaces are present."""
+        """必要な名前空間が存在することをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -162,7 +162,7 @@ class TestXMLStructure:
         assert "http://www.omg.org/spec/DD/20100524/DI" in attrib_values
 
     def test_collaboration_structure(self, sample_tiny_01):
-        """Test collaboration and participant structure."""
+        """コラボレーションと参加者構造をテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -178,7 +178,7 @@ class TestXMLStructure:
             assert "processRef" in participant.attrib
 
     def test_process_elements(self, sample_tiny_01):
-        """Test process elements are created."""
+        """プロセス要素が作成されることをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -190,7 +190,7 @@ class TestXMLStructure:
             assert "isExecutable" in process.attrib
 
     def test_task_elements(self, sample_tiny_01):
-        """Test task elements are created correctly."""
+        """タスク要素が正しく作成されることをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -207,7 +207,7 @@ class TestXMLStructure:
             assert "name" in task.attrib
 
     def test_gateway_elements(self, sample_tiny_01):
-        """Test gateway elements are created correctly."""
+        """ゲートウェイ要素が正しく作成されることをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -225,7 +225,7 @@ class TestXMLStructure:
             assert "name" in gateway.attrib
 
     def test_sequence_flow_elements(self, sample_tiny_01):
-        """Test sequence flow elements are created correctly."""
+        """シーケンスフロー要素が正しく作成されることをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -243,10 +243,10 @@ class TestXMLStructure:
 
 
 class TestDiagramElements:
-    """Test BPMN diagram interchange (DI) elements."""
+    """BPMNダイアグラムインターチェンジ（DI）要素をテストする。"""
 
     def test_diagram_exists(self, sample_tiny_01):
-        """Test BPMNDiagram element exists."""
+        """BPMNDiagram要素が存在することをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -255,7 +255,7 @@ class TestDiagramElements:
         assert "id" in diagram.attrib
 
     def test_plane_exists(self, sample_tiny_01):
-        """Test BPMNPlane element exists."""
+        """BPMNPlane要素が存在することをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -267,7 +267,7 @@ class TestDiagramElements:
         assert "bpmnElement" in plane.attrib
 
     def test_shapes_have_bounds(self, sample_tiny_01):
-        """Test all BPMNShape elements have Bounds."""
+        """すべてのBPMNShape要素がBoundsを持つことをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -292,7 +292,7 @@ class TestDiagramElements:
             assert float(bounds.attrib["height"]) > 0
 
     def test_edges_have_waypoints(self, sample_tiny_01):
-        """Test all BPMNEdge elements have waypoints."""
+        """すべてのBPMNEdge要素がウェイポイントを持つことをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
         root = ET.fromstring(bpmn_xml)
 
@@ -315,10 +315,10 @@ class TestDiagramElements:
 
 
 class TestLayoutCalculation:
-    """Test layout calculation algorithms."""
+    """レイアウト計算アルゴリズムをテストする。"""
 
     def test_layout_returns_positions(self, sample_tiny_01):
-        """Test layout calculation returns node positions."""
+        """レイアウト計算がノード位置を返すことをテストする。"""
         node_positions, edge_waypoints, lane_heights = calculate_layout(sample_tiny_01)
 
         assert len(node_positions) > 0
@@ -326,7 +326,7 @@ class TestLayoutCalculation:
         assert len(lane_heights) > 0
 
     def test_no_hardcoded_coordinates(self, sample_tiny_01):
-        """Test that coordinates are dynamically calculated."""
+        """座標が動的に計算されることをテストする。"""
         node_positions, _, _ = calculate_layout(sample_tiny_01)
 
         # Verify positions vary based on content
@@ -337,7 +337,7 @@ class TestLayoutCalculation:
         assert len(set(x_coords)) > 1 or len(set(y_coords)) > 1
 
     def test_scalability_different_sizes(self):
-        """Test layout scales with different flow sizes."""
+        """レイアウトが異なるフローサイズに対応することをテストする。"""
         small_flow = {
             "actors": [{"id": "a1", "name": "A1", "type": "human"}],
             "phases": [{"id": "p1", "name": "P1"}],
@@ -374,10 +374,10 @@ class TestLayoutCalculation:
 
 
 class TestValidation:
-    """Test BPMN validation functionality."""
+    """BPMNバリデーション機能をテストする。"""
 
     def test_valid_bpmn_passes_validation(self, sample_tiny_01):
-        """Test that valid BPMN passes validation."""
+        """有効なBPMNがバリデーションに合格することをテストする。"""
         bpmn_xml = convert_to_bpmn(sample_tiny_01)
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".bpmn", delete=False) as f:
@@ -395,7 +395,7 @@ class TestValidation:
             temp_path.unlink()
 
     def test_invalid_xml_fails_validation(self):
-        """Test that invalid XML fails validation."""
+        """無効なXMLがバリデーションに失敗することをテストする。"""
         invalid_xml = "<invalid>not bpmn</invalid>"
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".bpmn", delete=False) as f:
@@ -411,16 +411,16 @@ class TestValidation:
 
 
 class TestEdgeCases:
-    """Test edge cases and error handling."""
+    """エッジケースとエラーハンドリングをテストする。"""
 
     def test_single_task_no_flows(self, minimal_flow):
-        """Test flow with single task and no flows."""
+        """単一タスクでフローなしのフローをテストする。"""
         bpmn_xml = convert_to_bpmn(minimal_flow)
         assert bpmn_xml is not None
         assert "Task 1" in bpmn_xml
 
     def test_multiple_tasks_same_cell(self):
-        """Test multiple tasks in same (actor, phase) cell."""
+        """同じ（アクター、フェーズ）セルに複数のタスクをテストする。"""
         flow = {
             "metadata": {"id": "multi_task", "title": "Multi Task"},
             "actors": [{"id": "actor_1", "name": "Actor 1", "type": "human"}],
@@ -442,7 +442,7 @@ class TestEdgeCases:
         assert len(set(y_coords)) == 3, "Tasks in same cell should have different Y coordinates"
 
     def test_gateway_types(self):
-        """Test different gateway types."""
+        """異なるゲートウェイタイプをテストする。"""
         for gateway_type in ["exclusive", "parallel", "inclusive"]:
             flow = {
                 "metadata": {"id": f"{gateway_type}_test", "title": f"{gateway_type.title()} Test"},
@@ -462,7 +462,7 @@ class TestEdgeCases:
             assert f"{gateway_type}Gateway" in bpmn_xml
 
     def test_system_actor_creates_service_task(self):
-        """Test that system actor creates serviceTask instead of userTask."""
+        """システムアクターがuserTaskではなくserviceTaskを作成することをテストする。"""
         flow = {
             "metadata": {"id": "system_actor", "title": "System Actor"},
             "actors": [{"id": "system_1", "name": "System", "type": "system"}],
@@ -480,10 +480,10 @@ class TestEdgeCases:
 
 
 class TestIntegration:
-    """Integration tests with sample files."""
+    """サンプルファイルを使用した統合テスト。"""
 
     def test_all_sample_files(self):
-        """Test conversion of all available sample files."""
+        """利用可能なすべてのサンプルファイルの変換をテストする。"""
         sample_dir = Path("samples/expected")
         if not sample_dir.exists():
             pytest.skip("Sample directory not found")
@@ -514,10 +514,10 @@ class TestIntegration:
 
 
 class TestSVGGeneration:
-    """Test SVG visualization generation."""
+    """SVG可視化生成をテストする。"""
 
     def test_svg_generation_basic(self, sample_tiny_01):
-        """Test basic SVG generation."""
+        """基本的なSVG生成をテストする。"""
         from src.core.bpmn_converter import generate_bpmn_svg
         from src.core.bpmn_layout import calculate_layout, calculate_diagram_bounds
 
@@ -542,7 +542,7 @@ class TestSVGGeneration:
         assert "</svg>" in svg_content
 
     def test_svg_contains_visual_elements(self, sample_tiny_01):
-        """Test that SVG contains expected visual elements."""
+        """SVGが期待される視覚要素を含むことをテストする。"""
         from src.core.bpmn_converter import generate_bpmn_svg
         from src.core.bpmn_layout import calculate_layout, calculate_diagram_bounds
 
@@ -572,7 +572,7 @@ class TestSVGGeneration:
         assert 'id="arrow"' in svg_content
 
     def test_svg_with_different_gateway_types(self):
-        """Test SVG generation with different gateway types."""
+        """異なるゲートウェイタイプでのSVG生成をテストする。"""
         from src.core.bpmn_converter import generate_bpmn_svg
         from src.core.bpmn_layout import calculate_layout, calculate_diagram_bounds
 
@@ -610,7 +610,7 @@ class TestSVGGeneration:
             assert "bpmn-gateway" in svg_content
 
     def test_svg_file_output(self, sample_tiny_01):
-        """Test SVG file can be saved and loaded."""
+        """SVGファイルを保存および読み込みできることをテストする。"""
         from src.core.bpmn_converter import generate_bpmn_svg, save_svg
         from src.core.bpmn_layout import calculate_layout, calculate_diagram_bounds
 
@@ -643,7 +643,7 @@ class TestSVGGeneration:
             svg_path.unlink()
 
     def test_svg_conditional_flows(self, flow_with_gateway):
-        """Test SVG generation includes condition labels."""
+        """SVG生成が条件ラベルを含むことをテストする。"""
         from src.core.bpmn_converter import generate_bpmn_svg
         from src.core.bpmn_layout import calculate_layout, calculate_diagram_bounds
 
@@ -666,10 +666,10 @@ class TestSVGGeneration:
 
 
 class TestRunsIntegration:
-    """Test runs/ directory structure integration."""
+    """runs/ディレクトリ構造統合をテストする。"""
 
     def test_determine_output_paths_with_runs(self):
-        """Test output path determination for runs/ structure."""
+        """runs/構造の出力パス決定をテストする。"""
         from src.core.bpmn_converter import determine_output_paths
 
         # Create a mock runs structure path
@@ -685,7 +685,7 @@ class TestRunsIntegration:
         assert svg_path.name == "flow-bpmn.svg"
 
     def test_determine_output_paths_without_runs(self):
-        """Test output path determination for non-runs structure."""
+        """runs/以外の構造の出力パス決定をテストする。"""
         from src.core.bpmn_converter import determine_output_paths
 
         input_path = Path("/home/user/project/samples/expected/sample.json")
@@ -698,7 +698,7 @@ class TestRunsIntegration:
         assert svg_path == Path("output/flow-bpmn.svg")
 
     def test_determine_output_paths_with_custom_svg(self):
-        """Test output path determination with custom SVG path."""
+        """カスタムSVGパスでの出力パス決定をテストする。"""
         from src.core.bpmn_converter import determine_output_paths
 
         input_path = Path("/home/user/project/samples/expected/sample.json")

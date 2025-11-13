@@ -1,15 +1,15 @@
 """
-BPMN 2.0 XML converter for Business-flow-maker.
+Business-flow-maker用のBPMN 2.0 XMLコンバーター。
 
-This module converts JSON flow documents to BPMN 2.0 compliant XML format.
-It implements Layer2 functionality: JSON → BPMN 2.0 XML (.bpmn)
+このモジュールはJSONフロードキュメントをBPMN 2.0準拠のXML形式に変換します。
+Layer2機能を実装：JSON → BPMN 2.0 XML (.bpmn)
 
-Mapping:
-- actors → participant + lane elements (swimlane structure)
-- tasks → userTask or serviceTask elements (determined by actor_type)
-- gateways → exclusiveGateway, parallelGateway, or inclusiveGateway
-- flows → sequenceFlow elements (with conditional expressions)
-- phases → reflected as task ordering (no direct BPMN equivalent)
+マッピング:
+- actors → participant + lane要素（スイムレーン構造）
+- tasks → userTaskまたはserviceTask要素（actor_typeで決定）
+- gateways → exclusiveGateway、parallelGateway、inclusiveGateway
+- flows → sequenceFlow要素（条件式付き）
+- phases → タスク順序として反映（BPMNの直接的な対応要素なし）
 """
 
 from __future__ import annotations
@@ -31,13 +31,13 @@ from src.core.bpmn_layout import (
 
 logger = logging.getLogger(__name__)
 
-# BPMN 2.0 namespace definitions
+# BPMN 2.0 名前空間定義
 BPMN_NS = "http://www.omg.org/spec/BPMN/20100524/MODEL"
 BPMNDI_NS = "http://www.omg.org/spec/BPMN/20100524/DI"
 DC_NS = "http://www.omg.org/spec/DD/20100524/DC"
 DI_NS = "http://www.omg.org/spec/DD/20100524/DI"
 
-# Namespace prefixes for XML generation
+# XML生成用の名前空間プレフィックス
 NSMAP = {
     "bpmn2": BPMN_NS,
     "bpmndi": BPMNDI_NS,
@@ -47,7 +47,7 @@ NSMAP = {
 
 
 def register_namespaces():
-    """Register XML namespaces for proper prefix generation."""
+    """適切なプレフィックス生成のためにXML名前空間を登録する。"""
     try:
         from xml.etree import ElementTree as ET
         for prefix, uri in NSMAP.items():
@@ -57,33 +57,33 @@ def register_namespaces():
 
 
 def _ns(prefix: str, tag: str) -> str:
-    """Generate namespaced tag."""
+    """名前空間付きタグを生成する。"""
     return f"{{{NSMAP[prefix]}}}{tag}"
 
 
 def load_flow_json(path: Path) -> Dict[str, Any]:
-    """Load flow JSON file."""
+    """フローJSONファイルを読み込む。"""
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def convert_to_bpmn(flow: Dict[str, Any]) -> str:
     """
-    Convert flow JSON to BPMN 2.0 XML string.
+    フローJSONをBPMN 2.0 XML文字列に変換する。
 
     Args:
-        flow: Flow document dictionary
+        flow: フロードキュメント辞書
 
     Returns:
-        BPMN 2.0 XML string
+        BPMN 2.0 XML文字列
     """
     register_namespaces()
 
-    # Calculate layout
+    # レイアウト計算
     node_positions, edge_waypoints, lane_heights = calculate_layout(flow)
     actor_order = {actor["id"]: idx for idx, actor in enumerate(flow.get("actors", []))}
     diagram_width, diagram_height = calculate_diagram_bounds(node_positions, lane_heights, actor_order)
 
-    # Create root definitions element
+    # ルートdefinitions要素を作成
     definitions = Element(
         _ns("bpmn2", "definitions"),
         attrib={
@@ -93,14 +93,14 @@ def convert_to_bpmn(flow: Dict[str, Any]) -> str:
         },
     )
 
-    # Add collaboration (swimlane structure)
+    # コラボレーション（スイムレーン構造）を追加
     collaboration = SubElement(
         definitions,
         _ns("bpmn2", "collaboration"),
         attrib={"id": f"Collaboration_{flow.get('metadata', {}).get('id', 'flow')}"},
     )
 
-    # Add a single participant that references the main process
+    # メインプロセスを参照する単一の参加者を追加
     SubElement(
         collaboration,
         _ns("bpmn2", "participant"),
@@ -111,13 +111,13 @@ def convert_to_bpmn(flow: Dict[str, Any]) -> str:
         },
     )
 
-    # Add a single process with all tasks, gateways, and flows organized by lanes
+    # レーンで整理されたすべてのタスク、ゲートウェイ、フローを含む単一プロセスを追加
     _add_single_process(definitions, flow, node_positions, edge_waypoints, actor_order)
 
-    # Add BPMN diagram
+    # BPMNダイアグラムを追加
     _add_bpmn_diagram(definitions, flow, node_positions, edge_waypoints, lane_heights, actor_order, diagram_width, diagram_height)
 
-    # Convert to pretty-printed XML string
+    # 整形されたXML文字列に変換
     return _prettify_xml(definitions)
 
 
@@ -128,7 +128,7 @@ def _add_single_process(
     edge_waypoints: List[BPMNEdgeLayout],
     actor_order: Dict[str, int],
 ) -> None:
-    """Add a single process element with lanes for each actor."""
+    """各アクターのレーンを持つ単一のプロセス要素を追加する。"""
     process_id = f"Process_{flow.get('metadata', {}).get('id', 'flow')}"
 
     process = SubElement(
@@ -141,10 +141,10 @@ def _add_single_process(
         },
     )
 
-    # Add lane set
+    # レーンセットを追加
     lane_set = SubElement(process, _ns("bpmn2", "laneSet"), attrib={"id": f"LaneSet_{process_id}"})
 
-    # Create a lane for each actor
+    # 各アクターのレーンを作成
     for actor in sorted(flow.get("actors", []), key=lambda a: actor_order.get(a["id"], 0)):
         actor_id = actor["id"]
         lane = SubElement(
@@ -156,33 +156,33 @@ def _add_single_process(
             },
         )
 
-        # Collect all node IDs for this actor
+        # このアクターのすべてのノードIDを収集
         actor_node_ids = [
             node.node_id for node in node_positions.values() if node.actor_id == actor_id
         ]
 
-        # Add flowNodeRef elements
+        # flowNodeRef要素を追加
         for node_id in actor_node_ids:
             SubElement(lane, _ns("bpmn2", "flowNodeRef")).text = node_id
 
-    # Add all tasks (outside of lanes)
+    # すべてのタスクを追加（レーン外）
     for task in flow.get("tasks", []):
-        # Get actor for this task
+        # このタスクのアクターを取得
         actor_id = task.get("actor_id")
         actor = next((a for a in flow.get("actors", []) if a["id"] == actor_id), {})
         _add_task_element(process, task, actor)
 
-    # Add all gateways
+    # すべてのゲートウェイを追加
     for gateway in flow.get("gateways", []):
         _add_gateway_element(process, gateway)
 
-    # Add all sequence flows
+    # すべてのシーケンスフローを追加
     for flow_def in flow.get("flows", []):
         _add_sequence_flow(process, flow_def)
 
 
 def _add_task_element(process: Element, task: Dict[str, Any], actor: Dict[str, Any]) -> None:
-    """Add a task element to the process."""
+    """プロセスにタスク要素を追加する。"""
     task_type = "serviceTask" if actor.get("type") == "system" else "userTask"
 
     task_elem = SubElement(
@@ -194,14 +194,14 @@ def _add_task_element(process: Element, task: Dict[str, Any], actor: Dict[str, A
         },
     )
 
-    # Add documentation if notes exist
+    # notesが存在する場合はドキュメントを追加
     if task.get("notes"):
         doc = SubElement(task_elem, _ns("bpmn2", "documentation"))
         doc.text = task["notes"]
 
 
 def _add_gateway_element(process: Element, gateway: Dict[str, Any]) -> None:
-    """Add a gateway element to the process."""
+    """プロセスにゲートウェイ要素を追加する。"""
     gateway_type_map = {
         "exclusive": "exclusiveGateway",
         "parallel": "parallelGateway",
@@ -219,14 +219,14 @@ def _add_gateway_element(process: Element, gateway: Dict[str, Any]) -> None:
         },
     )
 
-    # Add documentation if notes exist
+    # notesが存在する場合はドキュメントを追加
     if gateway.get("notes"):
         doc = SubElement(gateway_elem, _ns("bpmn2", "documentation"))
         doc.text = gateway["notes"]
 
 
 def _add_sequence_flow(process: Element, flow_def: Dict[str, Any]) -> None:
-    """Add a sequence flow element to the process."""
+    """プロセスにシーケンスフロー要素を追加する。"""
     flow_attrib = {
         "id": flow_def["id"],
         "sourceRef": flow_def["from"],
@@ -238,7 +238,7 @@ def _add_sequence_flow(process: Element, flow_def: Dict[str, Any]) -> None:
 
     flow_elem = SubElement(process, _ns("bpmn2", "sequenceFlow"), attrib=flow_attrib)
 
-    # Add condition expression if condition exists
+    # conditionが存在する場合は条件式を追加
     if flow_def.get("condition"):
         condition = SubElement(
             flow_elem,
@@ -258,7 +258,7 @@ def _add_bpmn_diagram(
     diagram_width: float,
     diagram_height: float,
 ) -> None:
-    """Add BPMN diagram with visual information."""
+    """視覚情報を持つBPMNダイアグラムを追加する。"""
     diagram = SubElement(
         definitions,
         _ns("bpmndi", "BPMNDiagram"),
@@ -274,14 +274,14 @@ def _add_bpmn_diagram(
         },
     )
 
-    # Add shapes for participants (lanes)
+    # 参加者（レーン）のシェイプを追加
     _add_participant_shapes(plane, flow, lane_heights, actor_order, diagram_width)
 
-    # Add shapes for tasks and gateways
+    # タスクとゲートウェイのシェイプを追加
     for node in node_positions.values():
         _add_node_shape(plane, node)
 
-    # Add edges for sequence flows
+    # シーケンスフローのエッジを追加
     for edge in edge_waypoints:
         _add_edge_shape(plane, edge)
 
@@ -293,13 +293,13 @@ def _add_participant_shapes(
     actor_order: Dict[str, int],
     diagram_width: float,
 ) -> None:
-    """Add BPMNShape elements for participants and lanes."""
+    """参加者とレーンのBPMNShape要素を追加する。"""
     from src.core.bpmn_layout import BPMN_MARGIN
 
-    # Calculate total height for the single participant
+    # 単一参加者の合計高さを計算
     total_height = sum(lane_heights.get(actor["id"], 150) for actor in flow.get("actors", []))
 
-    # Add single participant shape that encompasses all lanes
+    # すべてのレーンを包含する単一の参加者シェイプを追加
     participant_shape = SubElement(
         plane,
         _ns("bpmndi", "BPMNShape"),
@@ -321,7 +321,7 @@ def _add_participant_shapes(
         },
     )
 
-    # Add lane shapes within the participant
+    # 参加者内のレーンシェイプを追加
     cumulative_y = BPMN_MARGIN
     for actor in sorted(flow.get("actors", []), key=lambda a: actor_order.get(a["id"], 0)):
         actor_id = actor["id"]
@@ -352,7 +352,7 @@ def _add_participant_shapes(
 
 
 def _add_node_shape(plane: Element, node: BPMNNodeLayout) -> None:
-    """Add BPMNShape element for a task or gateway."""
+    """タスクまたはゲートウェイのBPMNShape要素を追加する。"""
     shape = SubElement(
         plane,
         _ns("bpmndi", "BPMNShape"),
@@ -362,7 +362,7 @@ def _add_node_shape(plane: Element, node: BPMNNodeLayout) -> None:
         },
     )
 
-    # Adjust position for gateways (center the diamond)
+    # ゲートウェイの位置を調整（ダイヤモンドを中央揃え）
     x = node.x - node.width / 2 if node.kind == "gateway" else node.x
     y = node.y - node.height / 2 if node.kind == "gateway" else node.y
 
@@ -379,7 +379,7 @@ def _add_node_shape(plane: Element, node: BPMNNodeLayout) -> None:
 
 
 def _add_edge_shape(plane: Element, edge: BPMNEdgeLayout) -> None:
-    """Add BPMNEdge element for a sequence flow."""
+    """シーケンスフローのBPMNEdge要素を追加する。"""
     edge_elem = SubElement(
         plane,
         _ns("bpmndi", "BPMNEdge"),
@@ -389,7 +389,7 @@ def _add_edge_shape(plane: Element, edge: BPMNEdgeLayout) -> None:
         },
     )
 
-    # Add waypoints
+    # ウェイポイントを追加
     for x, y in edge.waypoints:
         SubElement(
             edge_elem,
@@ -402,24 +402,24 @@ def _add_edge_shape(plane: Element, edge: BPMNEdgeLayout) -> None:
 
 
 def _prettify_xml(elem: Element) -> str:
-    """Return a pretty-printed XML string with proper namespace declarations."""
+    """適切な名前空間宣言を持つ整形されたXML文字列を返す。"""
     from xml.etree import ElementTree as ET
 
-    # Ensure all namespaces are registered
+    # すべての名前空間が登録されていることを確認
     for prefix, uri in NSMAP.items():
         ET.register_namespace(prefix, uri)
 
-    # Add XSI namespace for conditionExpression
+    # conditionExpression用のXSI名前空間を追加
     ET.register_namespace("xsi", "http://www.w3.org/2001/XMLSchema-instance")
 
-    # Use ElementTree's built-in pretty printing via indent() in Python 3.9+
+    # Python 3.9+のElementTreeの組み込み整形機能（indent()）を使用
     try:
-        # Python 3.9+ has ET.indent()
+        # Python 3.9+にはET.indent()がある
         ET.indent(elem, space="  ", level=0)
         xml_string = ET.tostring(elem, encoding="unicode", method="xml")
         return f'<?xml version="1.0" encoding="UTF-8"?>\n{xml_string}'
     except AttributeError:
-        # Fallback for older Python versions - manual indentation
+        # 古いPythonバージョン用のフォールバック - 手動インデント
         xml_string = ET.tostring(elem, encoding="unicode", method="xml")
         return f'<?xml version="1.0" encoding="UTF-8"?>\n{xml_string}'
 
@@ -434,24 +434,24 @@ def generate_bpmn_svg(
     diagram_height: float,
 ) -> str:
     """
-    Generate SVG visualization of BPMN diagram.
+    BPMNダイアグラムのSVG可視化を生成する。
 
     Args:
-        flow: Flow document dictionary
-        node_positions: Calculated node positions
-        edge_waypoints: Calculated edge waypoints
-        lane_heights: Calculated lane heights
-        actor_order: Actor ordering
-        diagram_width: Total diagram width
-        diagram_height: Total diagram height
+        flow: フロードキュメント辞書
+        node_positions: 計算されたノード位置
+        edge_waypoints: 計算されたエッジウェイポイント
+        lane_heights: 計算されたレーン高さ
+        actor_order: アクター順序
+        diagram_width: ダイアグラム全体の幅
+        diagram_height: ダイアグラム全体の高さ
 
     Returns:
-        SVG string
+        SVG文字列
     """
     from xml.etree.ElementTree import Element, SubElement, tostring
     from src.core.bpmn_layout import BPMN_MARGIN
 
-    # Create SVG root element
+    # SVGルート要素を作成
     svg = Element(
         "svg",
         attrib={
@@ -462,7 +462,7 @@ def generate_bpmn_svg(
         },
     )
 
-    # Add style definitions
+    # スタイル定義を追加
     style = SubElement(svg, "style")
     style.text = """
         .bpmn-lane { fill: #f8f8f8; stroke: #000; stroke-width: 1; }
@@ -476,7 +476,7 @@ def generate_bpmn_svg(
         .bpmn-lane-label { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; }
     """
 
-    # Add arrow marker
+    # 矢印マーカーを追加
     defs = SubElement(svg, "defs")
     marker = SubElement(
         defs,
@@ -493,13 +493,13 @@ def generate_bpmn_svg(
     )
     SubElement(marker, "path", attrib={"d": "M0,0 L0,6 L9,3 z", "fill": "#000"})
 
-    # Draw swimlanes
+    # スイムレーンを描画
     cumulative_y = BPMN_MARGIN
     for actor in sorted(flow.get("actors", []), key=lambda a: actor_order.get(a["id"], 0)):
         actor_id = actor["id"]
         height = lane_heights.get(actor_id, 150)
 
-        # Lane background
+        # レーン背景
         SubElement(
             svg,
             "rect",
@@ -512,7 +512,7 @@ def generate_bpmn_svg(
             },
         )
 
-        # Lane label (rotated on the left)
+        # レーンラベル（左側に回転）
         text_elem = SubElement(
             svg,
             "text",
@@ -528,16 +528,16 @@ def generate_bpmn_svg(
 
         cumulative_y += height
 
-    # Draw tasks
+    # タスクを描画
     for node in node_positions.values():
         if node.kind == "task":
-            # Find task details to determine type
+            # タスクタイプを決定するためにタスク詳細を検索
             task_def = next((t for t in flow.get("tasks", []) if t["id"] == node.node_id), {})
             actor_id = task_def.get("actor_id")
             actor = next((a for a in flow.get("actors", []) if a["id"] == actor_id), {})
             is_service_task = actor.get("type") == "system"
 
-            # Draw task rectangle
+            # タスク矩形を描画
             SubElement(
                 svg,
                 "rect",
@@ -552,7 +552,7 @@ def generate_bpmn_svg(
                 },
             )
 
-            # Draw task label (wrapped text if needed)
+            # タスクラベルを描画（必要に応じてテキスト折り返し）
             text_elem = SubElement(
                 svg,
                 "text",
@@ -565,11 +565,11 @@ def generate_bpmn_svg(
             text_elem.text = node.label
 
         elif node.kind == "gateway":
-            # Find gateway details to determine type
+            # ゲートウェイタイプを決定するためにゲートウェイ詳細を検索
             gateway_def = next((g for g in flow.get("gateways", []) if g["id"] == node.node_id), {})
             gateway_type = gateway_def.get("type", "exclusive")
 
-            # Draw gateway diamond
+            # ゲートウェイダイヤモンドを描画
             cx = node.x
             cy = node.y
             size = node.width
@@ -588,9 +588,9 @@ def generate_bpmn_svg(
                 },
             )
 
-            # Draw gateway marker
+            # ゲートウェイマーカーを描画
             if gateway_type == "exclusive":
-                # X marker
+                # Xマーカー
                 marker_size = size * 0.4
                 SubElement(
                     svg,
@@ -617,7 +617,7 @@ def generate_bpmn_svg(
                     },
                 )
             elif gateway_type == "parallel":
-                # + marker
+                # +マーカー
                 marker_size = size * 0.4
                 SubElement(
                     svg,
@@ -644,7 +644,7 @@ def generate_bpmn_svg(
                     },
                 )
             elif gateway_type == "inclusive":
-                # O marker
+                # ○マーカー
                 marker_size = size * 0.35
                 SubElement(
                     svg,
@@ -659,7 +659,7 @@ def generate_bpmn_svg(
                     },
                 )
 
-            # Gateway label (below)
+            # ゲートウェイラベル（下側）
             if node.label:
                 text_elem = SubElement(
                     svg,
@@ -673,11 +673,11 @@ def generate_bpmn_svg(
                 )
                 text_elem.text = node.label
 
-    # Draw sequence flows
+    # シーケンスフローを描画
     for edge in edge_waypoints:
-        # Draw the flow line
+        # フローラインを描画
         if len(edge.waypoints) >= 2:
-            # Create path
+            # パスを作成
             path_data = f"M {edge.waypoints[0][0]},{edge.waypoints[0][1]}"
             for x, y in edge.waypoints[1:]:
                 path_data += f" L {x},{y}"
@@ -692,9 +692,9 @@ def generate_bpmn_svg(
                 },
             )
 
-            # Draw condition label if exists
+            # 条件ラベルが存在する場合は描画
             if edge.condition:
-                # Position label at midpoint
+                # 中点にラベルを配置
                 mid_idx = len(edge.waypoints) // 2
                 label_x = edge.waypoints[mid_idx][0]
                 label_y = edge.waypoints[mid_idx][1] - 5
@@ -711,43 +711,43 @@ def generate_bpmn_svg(
                 )
                 text_elem.text = edge.condition
 
-    # Convert to string
+    # 文字列に変換
     svg_string = tostring(svg, encoding="unicode", method="xml")
     return f'<?xml version="1.0" encoding="UTF-8"?>\n{svg_string}'
 
 
 def save_bpmn(bpmn_xml: str, output_path: Path) -> None:
-    """Save BPMN XML to file."""
+    """BPMNXMLをファイルに保存する。"""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(bpmn_xml, encoding="utf-8")
 
 
 def save_svg(svg_content: str, output_path: Path) -> None:
-    """Save SVG to file."""
+    """SVGをファイルに保存する。"""
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(svg_content, encoding="utf-8")
 
 
 def determine_output_paths(input_path: Path, output_arg: Path, svg_output_arg: Path = None) -> Tuple[Path, Path]:
     """
-    Determine output paths for BPMN and SVG files.
+    BPMNとSVGファイルの出力パスを決定する。
 
-    If input is in runs/ structure, output to the same run directory.
-    Otherwise, use the provided output paths.
+    入力がruns/構造内の場合、同じrunディレクトリに出力する。
+    それ以外の場合は、指定された出力パスを使用する。
 
     Args:
-        input_path: Input JSON file path
-        output_arg: BPMN output path from CLI argument
-        svg_output_arg: SVG output path from CLI argument (optional)
+        input_path: 入力JSONファイルパス
+        output_arg: CLI引数からのBPMN出力パス
+        svg_output_arg: CLI引数からのSVG出力パス（オプション）
 
     Returns:
-        Tuple of (bpmn_path, svg_path)
+        (bpmn_path, svg_path)のタプル
     """
     input_path = input_path.resolve()
 
-    # Check if input is in runs/ structure
+    # 入力がruns/構造内かチェック
     if "runs" in input_path.parts:
-        # Find the run directory
+        # runディレクトリを検索
         run_dir = None
         for i, part in enumerate(input_path.parts):
             if part == "runs" and i + 1 < len(input_path.parts):
@@ -755,69 +755,69 @@ def determine_output_paths(input_path: Path, output_arg: Path, svg_output_arg: P
                 break
 
         if run_dir and run_dir.exists():
-            # Output to runs/YYYYMMDD_HHMMSS_name/output/
+            # runs/YYYYMMDD_HHMMSS_name/output/に出力
             output_dir = run_dir / "output"
             bpmn_path = output_dir / "flow.bpmn"
             svg_path = output_dir / "flow-bpmn.svg"
             return bpmn_path, svg_path
 
-    # Default behavior: use provided output paths
+    # デフォルト動作: 指定された出力パスを使用
     bpmn_path = output_arg
     if svg_output_arg:
         svg_path = svg_output_arg
     else:
-        # Default SVG path based on BPMN path
+        # BPMNパスに基づくデフォルトSVGパス
         svg_path = bpmn_path.parent / f"{bpmn_path.stem}-bpmn.svg"
 
     return bpmn_path, svg_path
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
+    """コマンドライン引数を解析する。"""
     parser = argparse.ArgumentParser(
-        description="Convert Business-flow-maker JSON to BPMN 2.0 XML with SVG visualization"
+        description="Business-flow-maker JSONをSVG可視化付きBPMN 2.0 XMLに変換"
     )
     parser.add_argument(
         "--input",
         type=Path,
         required=True,
-        help="Input JSON file path",
+        help="入力JSONファイルパス",
     )
     parser.add_argument(
         "--output",
         type=Path,
         default=Path("output/flow.bpmn"),
-        help="Output BPMN file path (default: output/flow.bpmn, or auto-detect from runs/)",
+        help="出力BPMNファイルパス (デフォルト: output/flow.bpmn、またはruns/から自動検出)",
     )
     parser.add_argument(
         "--svg-output",
         type=Path,
         default=None,
-        help="Output SVG file path (default: same directory as BPMN with -bpmn.svg suffix)",
+        help="出力SVGファイルパス (デフォルト: BPMNと同じディレクトリに-bpmn.svg接尾辞)",
     )
     parser.add_argument(
         "--no-svg",
         action="store_true",
-        help="Disable SVG generation",
+        help="SVG生成を無効化",
     )
     parser.add_argument(
         "--validate",
         action="store_true",
-        help="Validate BPMN after generation",
+        help="生成後にBPMNを検証",
     )
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="Enable debug logging",
+        help="デバッグログを有効化",
     )
     return parser.parse_args()
 
 
 def main() -> None:
-    """Main entry point."""
+    """メインエントリーポイント。"""
     args = parse_args()
 
-    # Configure logging
+    # ログ設定
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(
         level=log_level,
@@ -827,7 +827,7 @@ def main() -> None:
     logger.info(f"Loading flow from {args.input}")
     flow = load_flow_json(args.input)
 
-    # Determine output paths (handles runs/ structure auto-detection)
+    # 出力パスを決定（runs/構造の自動検出を処理）
     bpmn_path, svg_path = determine_output_paths(args.input, args.output, args.svg_output)
 
     logger.info("Converting to BPMN 2.0 XML")
@@ -836,11 +836,11 @@ def main() -> None:
     logger.info(f"Saving BPMN to {bpmn_path}")
     save_bpmn(bpmn_xml, bpmn_path)
 
-    # Generate SVG if not disabled
+    # 無効化されていない場合はSVGを生成
     svg_generated = False
     if not args.no_svg:
         logger.info("Generating BPMN SVG visualization")
-        # Calculate layout (reuse from conversion)
+        # レイアウト計算（変換から再利用）
         node_positions, edge_waypoints, lane_heights = calculate_layout(flow)
         actor_order = {actor["id"]: idx for idx, actor in enumerate(flow.get("actors", []))}
         diagram_width, diagram_height = calculate_diagram_bounds(node_positions, lane_heights, actor_order)
@@ -861,7 +861,7 @@ def main() -> None:
 
     logger.info("Conversion complete")
 
-    # Validate BPMN if requested
+    # 要求された場合はBPMNを検証
     validation_passed = None
     if args.validate:
         logger.info("Validating BPMN")
@@ -876,10 +876,10 @@ def main() -> None:
                 logger.error(f"  - {error}")
             validation_passed = False
 
-    # Update info.md if in runs/ structure
+    # runs/構造内の場合はinfo.mdを更新
     input_path = args.input.resolve()
     if "runs" in input_path.parts:
-        # Find the run directory
+        # runディレクトリを検索
         run_dir = None
         for i, part in enumerate(input_path.parts):
             if part == "runs" and i + 1 < len(input_path.parts):
@@ -890,7 +890,7 @@ def main() -> None:
             try:
                 from src.utils import run_manager
 
-                # Prepare output files info
+                # 出力ファイル情報を準備
                 output_files = []
                 if bpmn_path.exists():
                     output_files.append({
@@ -903,14 +903,14 @@ def main() -> None:
                         "size": svg_path.stat().st_size,
                     })
 
-                # Prepare BPMN conversion info
+                # BPMN変換情報を準備
                 bpmn_info = {
                     "svg_generated": svg_generated,
                 }
                 if validation_passed is not None:
                     bpmn_info["validation_passed"] = validation_passed
 
-                # Update info.md
+                # info.mdを更新
                 run_manager.update_info_md(run_dir, {
                     "bpmn_conversion": bpmn_info,
                     "output_files": output_files,

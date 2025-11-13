@@ -1,56 +1,56 @@
-# BPMN Sample Outputs
+# BPMNサンプル出力
 
-This directory contains representative BPMN 2.0 XML files and their corresponding SVG visualizations, generated from the JSON flow samples in `samples/expected/`.
+このディレクトリには、`samples/expected/`内のJSONフローサンプルから生成された代表的なBPMN 2.0 XMLファイルと対応するSVG可視化ファイルが含まれています。
 
-## Files
+## ファイル一覧
 
-| Sample | BPMN XML | SVG Visualization | Description |
-|--------|----------|-------------------|-------------|
-| sample-tiny-01 | [sample-tiny-01.bpmn](./sample-tiny-01.bpmn) | [sample-tiny-01-bpmn.svg](./sample-tiny-01-bpmn.svg) | Simple procurement flow (2 actors, 6 tasks, 1 gateway) |
-| sample-small-01 | [sample-small-01.bpmn](./sample-small-01.bpmn) | [sample-small-01-bpmn.svg](./sample-small-01-bpmn.svg) | Small business process (2 actors, 4 tasks) |
-| sample-medium-01 | [sample-medium-01.bpmn](./sample-medium-01.bpmn) | [sample-medium-01-bpmn.svg](./sample-medium-01-bpmn.svg) | Employee onboarding flow (4 actors, 4 tasks, 1 gateway) |
-| sample-large-01 | [sample-large-01.bpmn](./sample-large-01.bpmn) | [sample-large-01-bpmn.svg](./sample-large-01-bpmn.svg) | Complex multi-department process |
+| サンプル | BPMN XML | SVG可視化 | 説明 |
+|--------|----------|-----------|------|
+| sample-tiny-01 | [sample-tiny-01.bpmn](./sample-tiny-01.bpmn) | [sample-tiny-01-bpmn.svg](./sample-tiny-01-bpmn.svg) | シンプルな調達フロー（2アクター、6タスク、1ゲートウェイ） |
+| sample-small-01 | [sample-small-01.bpmn](./sample-small-01.bpmn) | [sample-small-01-bpmn.svg](./sample-small-01-bpmn.svg) | 小規模ビジネスプロセス（2アクター、4タスク） |
+| sample-medium-01 | [sample-medium-01.bpmn](./sample-medium-01.bpmn) | [sample-medium-01-bpmn.svg](./sample-medium-01-bpmn.svg) | 従業員オンボーディングフロー（4アクター、4タスク、1ゲートウェイ） |
+| sample-large-01 | [sample-large-01.bpmn](./sample-large-01.bpmn) | [sample-large-01-bpmn.svg](./sample-large-01-bpmn.svg) | 複雑な多部門プロセス |
 
-## Viewing the Files
+## ファイルの閲覧方法
 
-### BPMN XML Files (.bpmn)
-The `.bpmn` files are BPMN 2.0 compliant XML files that can be opened and edited in:
+### BPMN XMLファイル（.bpmn）
+`.bpmn`ファイルはBPMN 2.0準拠のXMLファイルで、以下のツールで開いて編集できます：
 - [Camunda Modeler](https://camunda.com/download/modeler/)
 - [bpmn.io](https://demo.bpmn.io/)
-- Any BPMN 2.0 compliant tool
+- その他のBPMN 2.0準拠ツール
 
-### SVG Visualizations (.svg)
-The `.svg` files can be viewed directly in:
-- Web browsers (simply drag and drop the file)
-- GitHub (automatically rendered in the browser when viewing the file)
-- Any SVG-compatible image viewer
-- Embedded in Markdown documents
+### SVG可視化ファイル（.svg）
+`.svg`ファイルは以下の方法で直接閲覧できます：
+- Webブラウザ（ファイルをドラッグ&ドロップ）
+- GitHub（ファイル表示時にブラウザで自動レンダリング）
+- SVG対応の画像ビューアー
+- Markdownドキュメントへの埋め込み
 
-## Example: sample-tiny-01
+## 例：sample-tiny-01
 
-This is a simple procurement approval flow with:
-- **2 Actors (Swimlanes)**: 営業部 (Sales), 総務部 (General Affairs)
-- **6 Tasks**: Need confirmation, quote acquisition, request creation, manager approval, general affairs approval, delivery
-- **1 Exclusive Gateway**: Amount decision (¥100,000 threshold)
-- **7 Sequence Flows**: Including conditional branches
+これはシンプルな調達承認フローで、以下の要素を含みます：
+- **2アクター（スイムレーン）**：営業部、総務部
+- **6タスク**：必要性の確認、見積取得、依頼書作成、課長承認、総務承認、納品
+- **1排他ゲートウェイ**：金額判定（¥100,000の閾値）
+- **7シーケンスフロー**：条件分岐を含む
 
-### Preview
+### プレビュー
 
 ![Sample Tiny 01 BPMN](./sample-tiny-01-bpmn.svg)
 
-## BPMN 2.0 Features
+## BPMN 2.0の機能
 
-All generated BPMN files include:
-- ✅ **Collaboration structure** with participants and lanes
-- ✅ **User Tasks and Service Tasks** (distinguished by actor type)
-- ✅ **Gateways** (Exclusive, Parallel, Inclusive)
-- ✅ **Sequence Flows** with conditional expressions
-- ✅ **Diagram Interchange (DI)** for visual representation
-- ✅ **Dynamic layout** calculation (no hardcoded coordinates)
+生成されたすべてのBPMNファイルには以下が含まれます：
+- ✅ **Collaboration構造**（参加者とレーン）
+- ✅ **ユーザータスクとサービスタスク**（アクタータイプで区別）
+- ✅ **ゲートウェイ**（排他、並行、包含）
+- ✅ **シーケンスフロー**（条件式付き）
+- ✅ **Diagram Interchange (DI)**（視覚表現）
+- ✅ **動的レイアウト計算**（座標のハードコーディングなし）
 
-## Generation Command
+## 生成コマンド
 
-These files were generated using:
+これらのファイルは以下のコマンドで生成されました：
 
 ```bash
 python -m src.core.bpmn_converter \
@@ -59,18 +59,18 @@ python -m src.core.bpmn_converter \
   --validate
 ```
 
-The converter automatically generates both BPMN XML and SVG visualization unless disabled with `--no-svg`.
+コンバーターは`--no-svg`で無効化しない限り、BPMN XMLとSVG可視化の両方を自動生成します。
 
-## Validation
+## バリデーション
 
-All BPMN files in this directory have passed BPMN 2.0 validation using the built-in validator:
+このディレクトリ内のすべてのBPMNファイルは、組み込みバリデーターを使用してBPMN 2.0バリデーションに合格しています：
 
 ```bash
 python -m src.core.bpmn_validator <file>.bpmn
 ```
 
-## Further Reading
+## 関連情報
 
-- [BPMN 2.0 Specification](https://www.omg.org/spec/BPMN/2.0/)
-- [BPMN Visual Representation Guide](https://www.bpmn.org/)
-- [Project Documentation](../../README.md)
+- [BPMN 2.0仕様](https://www.omg.org/spec/BPMN/2.0/)
+- [BPMN視覚表現ガイド](https://www.bpmn.org/)
+- [プロジェクトドキュメント](../../README.md)

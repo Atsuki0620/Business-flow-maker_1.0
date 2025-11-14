@@ -17,7 +17,7 @@ import pathlib
 import re
 from dataclasses import asdict, dataclass
 from datetime import date
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.core.llm_client import LLMClient, create_llm_client, detect_provider
 
@@ -179,7 +179,7 @@ def _pick_identifier(value):
     return str(value)
 
 
-def _normalize_actors(raw_actors: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
+def _normalize_actors(raw_actors: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
     """actors配列を正規化し、ルックアップ辞書を返す。
 
     Args:
@@ -203,7 +203,7 @@ def _normalize_actors(raw_actors: List[Dict[str, Any]]) -> tuple[List[Dict[str, 
     return actors, actor_lookup
 
 
-def _normalize_phases(raw_phases: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], Dict[str, str]]:
+def _normalize_phases(raw_phases: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
     """phases配列を正規化し、ルックアップ辞書を返す。
 
     Args:

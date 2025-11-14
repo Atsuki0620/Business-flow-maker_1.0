@@ -1,6 +1,6 @@
 ﻿# Business-flow-maker 計画書
 
-[最終更新日時] 2025年11月13日 JST
+[最終更新日時] 2025年11月14日 JST
 
 ## 参照ドキュメント
 - [README.md](README.md) - プロジェクト概要とクイックスタート
@@ -76,6 +76,11 @@
   - BPMN準拠のSVG画像自動生成（GitHub直接プレビュー対応）
   - 動的座標計算（Sugiyamaアルゴリズムベース）
   - BPMN 2.0準拠性の自動検証
+- ✅ **コードレビュー対応と品質改善**（v0.41で実装完了）
+  - Python 3.9互換性の確保（型ヒント構文修正）
+  - コードリファクタリング（長大な関数の分割、責任の明確化）
+  - カスタム例外クラスの導入（src/core/exceptions.py）
+  - ドキュメント包括更新（README/samples/schemas/src の全面改訂）
 
 ### §3.2 将来検討項目
 - bpmn-js プレビュー機能、bpmnlint チェック連携
@@ -218,7 +223,35 @@ runs/
 - bpmnlint 合否検証
 - 画像品質確認
 
-### §6.3 将来計画（v1.0.0 に向けて）
+### §6.3 コードレビュー対応と品質改善（v0.41で完了）
+- ✅ **Python 3.9互換性の確保**
+  - ✅ 型ヒント構文の修正（`tuple[...]` → `Tuple[...]`）
+  - ✅ `typing.Tuple` をインポートに追加
+- ✅ **コードリファクタリング**
+  - ✅ `src/core/generator.py`: 長大な関数を分割
+    - ✅ `_load_few_shot_examples()`: Few-shot examples読み込みを分離
+    - ✅ `normalize_flow_document()`: 7つのヘルパー関数に分割
+      - `_normalize_actors()`, `_normalize_phases()`, `_normalize_tasks()`
+      - `_normalize_flows()`, `_normalize_gateways()`, `_normalize_issues()`
+      - `_normalize_metadata()`
+- ✅ **カスタム例外クラスの導入**
+  - ✅ `src/core/exceptions.py`: ドメイン固有例外クラス階層を定義
+    - `BusinessFlowMakerError`, `LLMClientError`, `BPMNConversionError`
+    - `VisualizationError`, `FileIOError`, `RunManagerError` など14種類
+- ✅ **ドキュメント包括更新**
+  - ✅ README.md: BPMNワークフロー例、トラブルシューティング、ユースケース追加
+  - ✅ samples/README.md: ディレクトリ構造更新、サイズ分類明記
+  - ✅ samples/bpmn/README.md: 生成手順詳細化、ツール互換性リスト拡充
+  - ✅ schemas/README.md: 存在しないファイルへの参照削除、スキーマ詳細説明
+  - ✅ src/README.md: 現在のディレクトリ構造を反映、モジュール依存関係図追加
+
+**完了基準達成**：
+- コードの保守性向上（関数の行数削減、責任の明確化）
+- エラーハンドリングの明確化（ドメイン固有例外）
+- ドキュメントの網羅性向上（プロジェクト全体像の理解促進）
+- Python 3.9以降での互換性保証
+
+### §6.4 将来計画（v1.0.0 に向けて）
 - Layer2（BPMN変換）の実装完了
 - 自動テストのカバレッジ拡充（目標: 80%以上）
 - CI/CD パイプラインの整備（GitHub Actions）

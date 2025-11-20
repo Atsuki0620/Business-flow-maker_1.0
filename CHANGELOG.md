@@ -1,6 +1,6 @@
 # CHANGELOG
 
-[最終更新日時] 2025年11月13日 JST
+[最終更新日時] 2025年11月14日 JST
 
 本ファイルは Business-flow-maker プロジェクトの全ての重要な変更を記録します。
 
@@ -434,6 +434,85 @@
 #### 既知の制限（今回のスコープ外）
 - エクスポート機能（PNG出力等）は未実装
 - bpmn-jsプレビュー機能は未実装
+
+---
+
+### [v0.41] - 2025-11-14 JST
+
+#### 変更（コードレビュー結果に基づく改善）
+- **Python 3.9互換性の確保**
+  - `src/core/generator.py`: 型ヒント構文を修正（`tuple[...]` → `Tuple[...]`）
+  - `_normalize_actors()` および `_normalize_phases()` の戻り値型を修正
+  - `typing.Tuple` をインポートに追加
+
+- **コードリファクタリング**
+  - `src/core/generator.py`: 長大な関数を分割して可読性向上
+    - `build_messages()`: Few-shot examples読み込みを `_load_few_shot_examples()` に抽出
+    - `normalize_flow_document()`: 200行超の関数を7つのヘルパー関数に分割
+      - `_normalize_actors()`: actors配列の正規化（ルックアップ辞書も返す）
+      - `_normalize_phases()`: phases配列の正規化（ルックアップ辞書も返す）
+      - `_normalize_tasks()`: tasks配列の正規化
+      - `_normalize_flows()`: flows配列の正規化
+      - `_normalize_gateways()`: gateways配列の正規化
+      - `_normalize_issues()`: issues配列の正規化
+      - `_normalize_metadata()`: metadata辞書の正規化
+
+- **カスタム例外クラスの導入**
+  - **src/core/exceptions.py** を新規作成
+    - `BusinessFlowMakerError`: 基底例外クラス
+    - `LLMClientError`: LLMクライアント関連エラー
+    - `ProviderDetectionError`: プロバイダ検出失敗エラー
+    - `LLMAPIError`: LLM API呼び出し失敗エラー
+    - `JSONParseError`: JSONパース失敗エラー
+    - `BPMNConversionError`: BPMN変換関連エラー
+    - `BPMNLayoutError`: レイアウト計算失敗エラー
+    - `BPMNValidationError`: BPMN検証失敗エラー
+    - `SchemaValidationError`: JSON Schema検証失敗エラー
+    - `VisualizationError`: 可視化関連エラー
+    - `HTMLGenerationError`: HTML生成失敗エラー
+    - `SVGGenerationError`: SVG生成失敗エラー
+    - `MermaidGenerationError`: Mermaid生成失敗エラー
+    - `FileIOError`: ファイル入出力エラー
+    - `RunManagerError`: runs/ディレクトリ管理エラー
+
+#### 追加（ドキュメント包括更新）
+- **README.md の大幅改善**
+  - BPMNワークフローの完全な使用例を追加（入力→生成→変換の全工程）
+  - トラブルシューティングセクションを新設（6つの一般的なエラーシナリオ）
+  - ユースケース例を追加（業務マニュアル作成、システム要件定義、業務改善活動など）
+
+- **samples/README.md の更新**
+  - ディレクトリ構造を最新化（`bpmn/` サブディレクトリを反映）
+  - サンプルサイズ分類を4段階で明記（tiny/small/medium/large）
+  - ファイル命名規則の詳細説明を追加
+
+- **samples/bpmn/README.md の充実化**
+  - 各サンプルの生成手順を詳細に記載
+  - BPMN準拠ツールの互換性リストを拡充（Camunda Modeler、bpmn.io、Visual Paradigm、Signavio、Bizagi、Enterprise Architect）
+
+- **schemas/README.md の刷新**
+  - 存在しないファイル（`bpmn-template.xml`）への参照を削除
+  - `flow.schema.json` の全フィールド仕様を日本語で詳細説明
+  - バージョン管理方針の追記
+
+- **src/README.md の全面改訂**
+  - 現在のディレクトリ構造（`core/`、`visualizers/`、`utils/`）を正確に反映
+  - モジュール依存関係図を追加
+  - 各主要モジュールの責務と役割を日本語で説明
+    - core/: コアロジック（generator、llm_client、bpmn_converter、bpmn_layout、bpmn_validator、exceptions）
+    - visualizers/: 可視化機能（html_visualizer、mermaid_visualizer）
+    - utils/: ユーティリティ（run_manager）
+
+#### テスト
+- pytest実行結果: 9/10テスト成功（既存のmonkeypatch関連エラー1件は既知の問題）
+- リファクタリングによる既存機能への影響なし
+- Python 3.9環境での動作確認
+
+#### 効果
+- コードの保守性向上（関数の行数削減、責任の明確化）
+- エラーハンドリングの明確化（ドメイン固有例外の導入）
+- ドキュメントの網羅性向上（プロジェクト全体像の理解促進）
+- Python 3.9以降での互換性保証
 
 ---
 

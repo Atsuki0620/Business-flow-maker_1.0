@@ -194,6 +194,45 @@ python -m src.core.bpmn_converter \
 
 **サンプル出力**: [samples/bpmn/](samples/bpmn/) ディレクトリにサンプル出力があります。
 
+### 5. 完全なワークフロー例（入力文書→BPMN出力まで）
+
+業務マニュアルから BPMN 2.0 準拠の成果物を生成する完全な手順：
+
+```bash
+# ステップ1: 入力文書からJSONを生成
+python -m src.core.generator \
+  --input samples/input/sample-medium-01.md \
+  --model gpt-4o-mini
+
+# 出力例: runs/20251113_140530_sample-medium-01/output/flow.json
+
+# ステップ2: HTML可視化でレビュー
+python -m src.visualizers.html_visualizer \
+  --json runs/20251113_140530_sample-medium-01/output/flow.json \
+  --html runs/20251113_140530_sample-medium-01/output/flow.html \
+  --svg runs/20251113_140530_sample-medium-01/output/flow.svg
+
+# ブラウザでflow.htmlを開いてフローを確認
+
+# ステップ3: BPMN 2.0 XML/SVGを生成
+python -m src.core.bpmn_converter \
+  --input runs/20251113_140530_sample-medium-01/output/flow.json \
+  --validate
+
+# 出力ファイル（runs/ディレクトリ内に自動生成）:
+# - flow.bpmn: Camunda Modelerで編集可能なBPMN 2.0 XML
+# - flow-bpmn.svg: GitHub上でプレビュー可能なSVG画像
+
+# ステップ4: 実行情報を確認
+cat runs/20251113_140530_sample-medium-01/info.md
+```
+
+**生成物の活用方法**:
+- `flow.html`: ブラウザで開き、業務フローのレビューに使用
+- `flow.bpmn`: Camunda Modeler、bpmn.io等のBPMNエディタで編集・共有
+- `flow-bpmn.svg`: ドキュメントやプレゼンテーションに貼り付け
+- `info.md`: 生成履歴の記録、再現性確保
+
 ---
 
 ## プロジェクト構成
@@ -233,6 +272,139 @@ Business-flow-maker_1.0/
 - **[PLAN.md](PLAN.md)**: 開発計画書（アーキテクチャ、スコープ、実装ステップ）
 - **[CHANGELOG.md](CHANGELOG.md)**: 改訂履歴とバージョン管理
 - **[AGENTS.md](AGENTS.md)**: 開発者向けガイドライン（コーディング規約、テスト指針）
+
+---
+
+## ユースケース例
+
+### 業務マニュアル作成
+- **課題**: 口頭で伝わっている業務手順を文書化したい
+- **活用方法**:
+  1. 業務担当者にヒアリングした内容をMarkdownで記述
+  2. LLMでJSON化し、HTMLで可視化してレビュー
+  3. フィードバックを反映後、BPMN出力して正式マニュアルに添付
+
+### システム要件定義
+- **課題**: 開発チームに業務フローを正確に伝えたい
+- **活用方法**:
+  1. 業務部門の要望文書からJSON生成
+  2. BPMN 2.0 XMLを出力し、Camunda Modelerで編集
+  3. システム要件定義書にSVGを貼り付け、開発チームと共有
+
+### 業務プロセス改善
+- **課題**: 現行業務の問題点を可視化したい
+- **活用方法**:
+  1. 現行フローをJSON化し、`issues`フィールドに改善点を記録
+  2. HTML可視化で問題箇所を赤色表示
+  3. 改善後フローと比較して効果を検証
+
+### 部署間連携フローの整理
+- **課題**: 複数部署にまたがる業務の責任分界点が不明確
+- **活用方法**:
+  1. actorsに各部署を定義し、tasksにhandoff_toを明記
+  2. 泳線図（Swimlane）で部署間の受け渡しを可視化
+  3. RACI情報を追加して責任範囲を明確化
+
+---
+
+## トラブルシューティング
+
+### API接続エラー
+
+**症状**: `LLMプロバイダを検出できませんでした`というエラーが表示される
+
+**対処法**:
+1. `.env`ファイルが存在し、正しく設定されているか確認
+   ```bash
+   cat .env
+   ```
+2. 環境変数が正しくロードされているか確認
+   ```bash
+   python -c "from dotenv import load_dotenv; import os; load_dotenv(); print(os.getenv('OPENAI_API_KEY'))"
+   ```
+3. APIキーがダミー値（`xxx`, `your-`など）でないか確認
+4. Azure OpenAIの場合、3つの環境変数すべてが設定されているか確認
+   - `AZURE_OPENAI_API_KEY`
+   - `AZURE_OPENAI_ENDPOINT`
+   - `AZURE_OPENAI_API_VERSION`
+
+### プロバイダ検出失敗
+
+**症状**: 環境変数を設定したのにOpenAIが検出されない
+
+**対処法**:
+1. ダミープロキシ設定が残っていないか確認
+   ```bash
+   echo $HTTP_PROXY
+   echo $HTTPS_PROXY
+   ```
+2. プロキシ環境変数がダミー値の場合は削除
+   ```bash
+   unset HTTP_PROXY
+   unset HTTPS_PROXY
+   ```
+3. `--debug`フラグで詳細ログを確認
+   ```bash
+   python -m src.core.generator --input samples/input/sample-tiny-01.md --model gpt-4o-mini --debug
+   ```
+
+### BPMN検証エラー
+
+**症状**: `BPMN 2.0準拠性の検証に失敗しました`というエラーが表示される
+
+**対処法**:
+1. 入力JSONのflows配列を確認（fromとtoが正しく設定されているか）
+2. gatewaysに2つ以上の出力フローがあるか確認
+3. `--debug`フラグで詳細なエラー情報を確認
+   ```bash
+   python -m src.core.bpmn_converter --input output/flow.json --validate --debug
+   ```
+4. 検証をスキップしてBPMNを生成する場合（非推奨）
+   ```bash
+   python -m src.core.bpmn_converter --input output/flow.json
+   ```
+
+### JSON Schema検証エラー
+
+**症状**: `JSON Schema検証に失敗しました`というエラーが表示される
+
+**対処法**:
+1. 生成されたJSONファイルの構造を確認
+   ```bash
+   cat output/flow.json | python -m json.tool
+   ```
+2. 必須フィールドが存在するか確認（actors, phases, tasks, flows, issues）
+3. `--skip-validation`フラグで検証をスキップ（デバッグ用）
+   ```bash
+   python -m src.core.generator --input samples/input/sample-small-01.md --skip-validation
+   ```
+
+### runs/ディレクトリが作成されない
+
+**症状**: `--output`を省略しても`runs/`ディレクトリが作成されない
+
+**対処法**:
+1. 書き込み権限があるか確認
+   ```bash
+   ls -la | grep runs
+   ```
+2. 手動でディレクトリを作成
+   ```bash
+   mkdir runs
+   ```
+3. `--output`を明示的に指定
+   ```bash
+   python -m src.core.generator --input samples/input/sample-small-01.md --output output/flow.json
+   ```
+
+### 文字化け（Windows）
+
+**症状**: HTMLやSVGファイルをブラウザで開くと日本語が文字化けする
+
+**対処法**:
+1. ファイルがUTF-8（BOM付き）で保存されているか確認
+2. ブラウザの文字エンコーディング設定をUTF-8に変更
+3. エディタで再保存する際にUTF-8を指定
 
 ---
 

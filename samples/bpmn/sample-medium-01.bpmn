@@ -34,39 +34,43 @@
   <bpmndi:BPMNDiagram id="BPMNDiagram_sample-medium-01">
     <bpmndi:BPMNPlane id="BPMNPlane_sample-medium-01" bpmnElement="Process_sample-medium-01">
       <bpmndi:BPMNShape id="Shape_t1_collect_docs" bpmnElement="t1_collect_docs">
-        <dc:Bounds x="230" y="100.0" width="180" height="80"/>
+        <dc:Bounds x="230.0" y="85.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_t2_account" bpmnElement="t2_account">
-        <dc:Bounds x="230" y="300.0" width="180" height="80"/>
+        <dc:Bounds x="510.0" y="320.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_t3_orientation" bpmnElement="t3_orientation">
-        <dc:Bounds x="490" y="500.0" width="180" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_g1_device_ready" bpmnElement="g1_device_ready">
-        <dc:Bounds x="490" y="600.0" width="60" height="60"/>
+        <dc:Bounds x="510.0" y="470.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_t4_followup" bpmnElement="t4_followup">
-        <dc:Bounds x="750" y="400.0" width="180" height="80"/>
+        <dc:Bounds x="510.0" y="570.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_g1_device_ready" bpmnElement="g1_device_ready">
+        <dc:Bounds x="570.0" y="240.0" width="60" height="60"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Edge_f1" bpmnElement="f1">
-        <di:waypoint x="410" y="140.0"/>
-        <di:waypoint x="230" y="340.0"/>
+        <di:waypoint x="410.0" y="125.0"/>
+        <di:waypoint x="460.0" y="125.0"/>
+        <di:waypoint x="460.0" y="360.0"/>
+        <di:waypoint x="510.0" y="360.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_f2" bpmnElement="f2">
-        <di:waypoint x="410" y="340.0"/>
-        <di:waypoint x="490" y="630.0"/>
+        <di:waypoint x="690.0" y="360.0"/>
+        <di:waypoint x="570.0" y="270.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_f3" bpmnElement="f3">
-        <di:waypoint x="550" y="630.0"/>
-        <di:waypoint x="490" y="540.0"/>
+        <di:waypoint x="630.0" y="270.0"/>
+        <di:waypoint x="570.0" y="270.0"/>
+        <di:waypoint x="570.0" y="510.0"/>
+        <di:waypoint x="510.0" y="510.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_f4" bpmnElement="f4">
-        <di:waypoint x="550" y="630.0"/>
-        <di:waypoint x="230" y="340.0"/>
+        <di:waypoint x="630.0" y="270.0"/>
+        <di:waypoint x="510.0" y="360.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_f5" bpmnElement="f5">
-        <di:waypoint x="670" y="540.0"/>
-        <di:waypoint x="750" y="440.0"/>
+        <di:waypoint x="690.0" y="510.0"/>
+        <di:waypoint x="510.0" y="610.0"/>
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

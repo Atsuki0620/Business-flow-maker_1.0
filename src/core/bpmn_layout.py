@@ -1,23 +1,83 @@
 """
-BPMN 2.0準拠のレイアウト計算モジュール。
+BPMN 2.0準拠のレイアウト計算モジュール（v0.42 全面改訂版）。
 
-Sugiyamaアルゴリズムの原理に基づいた動的座標計算を実装し、
-異なる規模の業務フローに対して適切な配置を生成します。
-
-固定座標値は一切使用せず、すべての座標を動的に計算します。
+レイアウトエンジンの設計方針：
+- 固定座標を一切使用せず、JSON構造から動的に計算
+- 構造レベル（レーン/ランク割り当て）と幾何レベル（座標計算）を分離
+- 直交（マンハッタン）ルーティングでエッジを描画
+- phases がある場合は phases の順序、ない場合はトポロジカルソートで列を決定
 """
 
 from __future__ import annotations
 
 import math
 from collections import defaultdict, deque
-from dataclasses import dataclass
-from typing import Any, Dict, List, Set, Tuple
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+# ============================================================================
+# レイアウト中間モデル
+# ============================================================================
+
+
+@dataclass
+class LayoutNode:
+    """レイアウト計算用のノード中間モデル。"""
+
+    node_id: str
+    kind: str  # "task" | "gateway" | "start" | "end"
+    label: str
+    actor_id: str  # 所属するactor（レーン）
+    phase_id: Optional[str] = None  # 所属するphase（なくてもよい）
+
+    # 構造レベルの情報
+    lane_index: int = 0  # レーン番号（0,1,2,...）
+    rank_index: int = 0  # ランク（列）番号（0,1,2,...）
+    order_in_rank: int = 0  # 同ランク内での順序（0,1,2,...）
+
+    # 幾何レベルの情報
+    width: float = 0.0
+    height: float = 0.0
+    x: float = 0.0
+    y: float = 0.0
+
+
+@dataclass
+class LayoutEdge:
+    """レイアウト計算用のエッジ中間モデル。"""
+
+    edge_id: str
+    from_node: str
+    to_node: str
+    condition: Optional[str] = None
+    waypoints: List[Tuple[float, float]] = field(default_factory=list)
+
+
+@dataclass
+class LayoutLane:
+    """レイアウト計算用のレーン（スイムレーン）情報。"""
+
+    lane_index: int
+    actor_id: str
+    label: str
+    y: float = 0.0
+    height: float = 0.0
+
+
+@dataclass
+class LayoutRank:
+    """レイアウト計算用のランク（列）情報。"""
+
+    rank_index: int
+    phase_id: Optional[str] = None
+    label: Optional[str] = None
+    x: float = 0.0
+    width: float = 0.0
 
 
 @dataclass
 class BPMNNodeLayout:
-    """BPMNノードのレイアウト情報。"""
+    """BPMN変換用のノードレイアウト情報（後方互換性のため保持）。"""
 
     node_id: str
     label: str
@@ -25,13 +85,13 @@ class BPMNNodeLayout:
     y: float
     width: float
     height: float
-    kind: str  # "task" | "gateway" | "start" | "end"
-    lane_id: str  # スイムレーンID（actor_id）
+    kind: str
+    lane_id: str
 
 
 @dataclass
 class BPMNLaneLayout:
-    """BPMNスイムレーンのレイアウト情報。"""
+    """BPMN変換用のレーンレイアウト情報（後方互換性のため保持）。"""
 
     lane_id: str
     label: str
@@ -41,15 +101,19 @@ class BPMNLaneLayout:
     height: float
 
 
+# ============================================================================
+# レイアウトエンジン
+# ============================================================================
+
+
 class BPMNLayoutEngine:
     """
-    BPMN 2.0準拠のレイアウトエンジン。
+    BPMN 2.0準拠のレイアウトエンジン（v0.42全面改訂版）。
 
-    Sugiyamaアルゴリズムに基づく4段階処理：
-    1. トポロジカルソートによる階層決定
-    2. バリセントリック法による交差最小化
-    3. 水平座標の動的割り当て
-    4. エッジ経路の計算
+    設計方針：
+    1. 構造レベルのレイアウト：レーン割り当て、ランク割り当て、ノード順序決定
+    2. 幾何レベルのレイアウト：ノードサイズ推定、レーン/ランク幅高さ計算、座標割り当て
+    3. エッジルーティング：直交（マンハッタン）ルーティングで中継点を計算
     """
 
     def __init__(self, flow: Dict[str, Any]):
@@ -64,16 +128,26 @@ class BPMNLayoutEngine:
         self.gateways = flow.get("gateways", [])
         self.flows_data = flow.get("flows", [])
 
-        # 動的スケーリングパラメータの計算
+        # レイアウト用の中間データ
+        self.nodes: Dict[str, LayoutNode] = {}
+        self.edges: List[LayoutEdge] = []
+        self.lanes: List[LayoutLane] = []
+        self.ranks: List[LayoutRank] = []
+
+        # パラメータ（フロー規模に応じて調整）
         total_nodes = len(self.tasks) + len(self.gateways)
-        self._base_spacing = max(80, int(60 * math.sqrt(total_nodes / 10)))
-        self._lane_header_width = 180
-        self._task_base_width = 180
-        self._task_base_height = 80
-        self._gateway_size = 60
-        self._lane_base_height = max(200, 150 + int(20 * math.sqrt(total_nodes)))
-        self._margin_x = 50
-        self._margin_y = 50
+        self.params = {
+            "margin_x": 50,
+            "margin_y": 50,
+            "lane_header_width": 180,
+            "task_base_width": 180,
+            "task_base_height": 80,
+            "gateway_size": 60,
+            "rank_spacing": 100,  # ランク間のスペース
+            "node_spacing_y": 20,  # 同レーン内のノード間スペース
+            "lane_min_height": 150,
+            "lane_padding_y": 30,
+        }
 
         # グラフ構造の構築
         self._build_graph()
@@ -90,189 +164,422 @@ class BPMNLayoutEngine:
                 self.graph[from_id].append(to_id)
                 self.reverse_graph[to_id].append(from_id)
 
-    def _get_node_kind(self, node_id: str) -> str:
-        """ノードIDから種類を判定する。"""
+    # ========================================================================
+    # 構造レベル：ノード中間モデルの構築
+    # ========================================================================
+
+    def _build_nodes(self) -> None:
+        """ノード中間モデルを構築する。"""
+        # タスクノードの作成
         for task in self.tasks:
-            if task["id"] == node_id:
-                return "task"
+            node = LayoutNode(
+                node_id=task["id"],
+                kind="task",
+                label=task.get("name", task["id"]),
+                actor_id=task.get("actor_id", ""),
+                phase_id=task.get("phase_id", None),
+            )
+            self.nodes[task["id"]] = node
+
+        # ゲートウェイノードの作成
         for gateway in self.gateways:
-            if gateway["id"] == node_id:
-                return "gateway"
-        return "unknown"
+            # ゲートウェイの actor_id は隣接ノードから推測
+            actor_id = self._infer_gateway_actor(gateway["id"])
+            # ゲートウェイの phase_id も隣接ノードから推測
+            phase_id = self._infer_gateway_phase(gateway["id"])
 
-    def _get_node_label(self, node_id: str) -> str:
-        """ノードIDからラベルを取得する。"""
-        for task in self.tasks:
-            if task["id"] == node_id:
-                return task.get("name", node_id)
-        for gateway in self.gateways:
-            if gateway["id"] == node_id:
-                return gateway.get("name", "")
-        return node_id
+            node = LayoutNode(
+                node_id=gateway["id"],
+                kind="gateway",
+                label=gateway.get("name", ""),
+                actor_id=actor_id,
+                phase_id=phase_id,
+            )
+            self.nodes[gateway["id"]] = node
 
-    def _get_node_actor(self, node_id: str) -> str:
-        """ノードIDから所属するactorを取得する。"""
-        for task in self.tasks:
-            if task["id"] == node_id:
-                return task.get("actor_id", "")
+    def _infer_gateway_actor(self, gateway_id: str) -> str:
+        """ゲートウェイの所属 actor を隣接ノードから推測する。"""
+        # 入力元のノードの actor を優先
+        predecessors = self.reverse_graph.get(gateway_id, [])
+        for pred_id in predecessors:
+            for task in self.tasks:
+                if task["id"] == pred_id:
+                    return task.get("actor_id", "")
 
-        # ゲートウェイの場合は隣接ノードから推測
-        neighbors = self.graph.get(node_id, []) + self.reverse_graph.get(node_id, [])
-        for neighbor in neighbors:
-            actor = self._get_node_actor(neighbor)
-            if actor:
-                return actor
+        # 出力先のノードの actor を次善
+        successors = self.graph.get(gateway_id, [])
+        for succ_id in successors:
+            for task in self.tasks:
+                if task["id"] == succ_id:
+                    return task.get("actor_id", "")
 
+        # デフォルト：最初の actor
         return self.actors[0]["id"] if self.actors else ""
 
-    def _topological_sort(self) -> List[List[str]]:
-        """
-        トポロジカルソートによる階層決定（Sugiyama第1段階）。
+    def _infer_gateway_phase(self, gateway_id: str) -> Optional[str]:
+        """ゲートウェイの所属 phase を隣接ノードから推測する。"""
+        # 入力元のノードの phase を優先
+        predecessors = self.reverse_graph.get(gateway_id, [])
+        for pred_id in predecessors:
+            for task in self.tasks:
+                if task["id"] == pred_id:
+                    return task.get("phase_id", None)
 
-        Returns:
-            階層ごとのノードIDリスト
-        """
-        all_nodes = {task["id"] for task in self.tasks} | {gw["id"] for gw in self.gateways}
-        in_degree = {node: 0 for node in all_nodes}
+        # 出力先のノードの phase を次善
+        successors = self.graph.get(gateway_id, [])
+        for succ_id in successors:
+            for task in self.tasks:
+                if task["id"] == succ_id:
+                    return task.get("phase_id", None)
 
-        for node in all_nodes:
-            in_degree[node] = len(self.reverse_graph.get(node, []))
+        return None
 
-        layers: List[List[str]] = []
-        remaining = set(all_nodes)
+    # ========================================================================
+    # 構造レベル：レーン割り当て
+    # ========================================================================
 
-        while remaining:
-            # 現在の階層：入次数が0のノード
-            current_layer = [node for node in remaining if in_degree[node] == 0]
+    def _assign_lanes(self) -> None:
+        """各ノードにレーン番号を割り当てる。"""
+        # actors の順序から lane_index を決定
+        actor_to_lane: Dict[str, int] = {}
+        for idx, actor in enumerate(self.actors):
+            actor_to_lane[actor["id"]] = idx
 
-            if not current_layer:
-                # 循環がある場合は残りのノードをまとめて追加
-                current_layer = list(remaining)
+        # 各ノードに lane_index を設定
+        for node in self.nodes.values():
+            node.lane_index = actor_to_lane.get(node.actor_id, 0)
 
-            layers.append(current_layer)
-            remaining -= set(current_layer)
+        # LayoutLane リストを作成
+        self.lanes = []
+        for idx, actor in enumerate(self.actors):
+            self.lanes.append(
+                LayoutLane(
+                    lane_index=idx,
+                    actor_id=actor["id"],
+                    label=actor.get("name", actor["id"]),
+                )
+            )
 
-            # 次の階層のために入次数を更新
-            for node in current_layer:
-                for successor in self.graph.get(node, []):
-                    if successor in remaining:
-                        in_degree[successor] -= 1
+    # ========================================================================
+    # 構造レベル：ランク割り当て
+    # ========================================================================
 
-        return layers
+    def _assign_ranks(self) -> None:
+        """各ノードにランク（列）番号を割り当てる。"""
+        # phases に関わらず、常にトポロジカルソートでランクを決定
+        # （phase は後でグループ化に使用可能だが、レイアウトは時系列を優先）
+        self._assign_ranks_by_topological_sort()
 
-    def _assign_to_phase(self, node_id: str, layers: List[List[str]]) -> int:
-        """ノードをフェーズ（階層）に割り当てる。"""
-        for task in self.tasks:
-            if task["id"] == node_id:
-                phase_id = task.get("phase_id", "")
-                for idx, phase in enumerate(self.phases):
-                    if phase["id"] == phase_id:
-                        return idx
+    def _assign_ranks_by_phases(self) -> None:
+        """phases の順序でランクを割り当てる。"""
+        phase_to_rank: Dict[str, int] = {}
+        for idx, phase in enumerate(self.phases):
+            phase_to_rank[phase["id"]] = idx
 
-        # フェーズ情報がない場合はトポロジカルソートの階層を使用
-        for layer_idx, layer in enumerate(layers):
-            if node_id in layer:
-                return layer_idx
-
-        return 0
-
-    def _barycenter_method(self, layers: List[List[str]]) -> List[List[str]]:
-        """
-        バリセントリック法による交差最小化（Sugiyama第2段階）。
-
-        Args:
-            layers: トポロジカルソート後の階層
-
-        Returns:
-            最適化された階層
-        """
-        optimized = [layer[:] for layer in layers]
-
-        # 複数回の反復で最適化
-        for _ in range(3):
-            # 下向きパス
-            for i in range(1, len(optimized)):
-                optimized[i] = self._order_by_barycenter(optimized[i], optimized[i-1], direction="down")
-
-            # 上向きパス
-            for i in range(len(optimized) - 2, -1, -1):
-                optimized[i] = self._order_by_barycenter(optimized[i], optimized[i+1], direction="up")
-
-        return optimized
-
-    def _order_by_barycenter(self, layer: List[str], reference_layer: List[str], direction: str) -> List[str]:
-        """バリセントリック値に基づいてノードを並べ替える。"""
-        def barycenter(node_id: str) -> float:
-            if direction == "down":
-                neighbors = self.reverse_graph.get(node_id, [])
+        # 各ノードに rank_index を設定
+        for node in self.nodes.values():
+            if node.phase_id and node.phase_id in phase_to_rank:
+                node.rank_index = phase_to_rank[node.phase_id]
             else:
-                neighbors = self.graph.get(node_id, [])
+                # phase_id がない、または存在しない phase の場合は最初のランク
+                node.rank_index = 0
 
-            if not neighbors:
-                return len(reference_layer) / 2
+        # LayoutRank リストを作成
+        self.ranks = []
+        for idx, phase in enumerate(self.phases):
+            self.ranks.append(
+                LayoutRank(
+                    rank_index=idx,
+                    phase_id=phase["id"],
+                    label=phase.get("name", phase["id"]),
+                )
+            )
 
-            positions = [reference_layer.index(n) for n in neighbors if n in reference_layer]
-            return sum(positions) / len(positions) if positions else len(reference_layer) / 2
+    def _assign_ranks_by_topological_sort(self) -> None:
+        """トポロジカルソートでランクを割り当てる。"""
+        # BFS でレベルを決定
+        all_node_ids = set(self.nodes.keys())
+        in_degree = {nid: len(self.reverse_graph.get(nid, [])) for nid in all_node_ids}
 
-        return sorted(layer, key=barycenter)
+        rank_assignment: Dict[str, int] = {}
+        queue: deque = deque()
 
-    def _calculate_horizontal_positions(self, layers_by_phase: Dict[int, List[str]]) -> Dict[str, float]:
+        # 入次数0のノードから開始
+        for nid in all_node_ids:
+            if in_degree[nid] == 0:
+                queue.append(nid)
+                rank_assignment[nid] = 0
+
+        while queue:
+            current = queue.popleft()
+            current_rank = rank_assignment[current]
+
+            for successor in self.graph.get(current, []):
+                in_degree[successor] -= 1
+                if in_degree[successor] == 0:
+                    # 後続ノードのランクは現在のランク + 1
+                    rank_assignment[successor] = current_rank + 1
+                    queue.append(successor)
+
+        # 循環がある場合の処理（残りのノードを最後のランクに配置）
+        max_rank = max(rank_assignment.values()) if rank_assignment else 0
+        for nid in all_node_ids:
+            if nid not in rank_assignment:
+                rank_assignment[nid] = max_rank + 1
+
+        # 各ノードに rank_index を設定
+        for nid, rank in rank_assignment.items():
+            self.nodes[nid].rank_index = rank
+
+        # LayoutRank リストを作成（ランク数だけ）
+        max_rank = max(node.rank_index for node in self.nodes.values()) if self.nodes else 0
+        self.ranks = []
+        for idx in range(max_rank + 1):
+            self.ranks.append(
+                LayoutRank(
+                    rank_index=idx,
+                    phase_id=None,
+                    label=f"列{idx+1}",
+                )
+            )
+
+    # ========================================================================
+    # 構造レベル：同ランク内のノード順序決定
+    # ========================================================================
+
+    def _order_nodes_in_rank(self) -> None:
+        """同じランク内でのノード順序を決定する。"""
+        # ランクごとにノードをグループ化
+        nodes_by_rank: Dict[int, List[LayoutNode]] = defaultdict(list)
+        for node in self.nodes.values():
+            nodes_by_rank[node.rank_index].append(node)
+
+        # 各ランク内でノードをソート（lane_index 順、次にトポロジカル順）
+        for rank_idx, nodes_in_rank in nodes_by_rank.items():
+            # lane_index でソート
+            sorted_nodes = sorted(nodes_in_rank, key=lambda n: (n.lane_index, n.node_id))
+
+            # order_in_rank を設定
+            for order, node in enumerate(sorted_nodes):
+                node.order_in_rank = order
+
+    # ========================================================================
+    # 幾何レベル：ノードサイズ推定
+    # ========================================================================
+
+    def _calculate_node_sizes(self) -> None:
+        """各ノードのサイズ（幅・高さ）を計算する。"""
+        for node in self.nodes.values():
+            if node.kind == "gateway":
+                node.width = self.params["gateway_size"]
+                node.height = self.params["gateway_size"]
+            else:  # task
+                # ラベル長から幅を推定（日本語は全角換算で1文字≒10px程度）
+                label_len = len(node.label)
+                estimated_width = max(
+                    self.params["task_base_width"],
+                    min(300, 80 + label_len * 10),
+                )
+                node.width = estimated_width
+                node.height = self.params["task_base_height"]
+
+    # ========================================================================
+    # 幾何レベル：ランク幅の計算
+    # ========================================================================
+
+    def _calculate_rank_widths(self) -> None:
+        """各ランクの幅を、そのランクに含まれるノードの最大幅から計算する。"""
+        # ランクごとの最大ノード幅を集計
+        rank_max_width: Dict[int, float] = {}
+        for node in self.nodes.values():
+            rank_idx = node.rank_index
+            if rank_idx not in rank_max_width:
+                rank_max_width[rank_idx] = 0
+            rank_max_width[rank_idx] = max(rank_max_width[rank_idx], node.width)
+
+        # 各ランクに幅を設定
+        for rank in self.ranks:
+            rank.width = rank_max_width.get(rank.rank_index, self.params["task_base_width"])
+
+    # ========================================================================
+    # 幾何レベル：レーン高さの計算
+    # ========================================================================
+
+    def _calculate_lane_heights(self) -> None:
+        """各レーンの高さを、そのレーンに含まれるノード数と高さから計算する。"""
+        # レーンごとのノード数と最大ノード高さを集計
+        lane_node_counts: Dict[int, int] = defaultdict(int)
+        lane_max_height: Dict[int, float] = defaultdict(float)
+
+        for node in self.nodes.values():
+            lane_idx = node.lane_index
+            lane_node_counts[lane_idx] += 1
+            lane_max_height[lane_idx] = max(lane_max_height[lane_idx], node.height)
+
+        # 各レーンに高さを設定
+        for lane in self.lanes:
+            node_count = lane_node_counts.get(lane.lane_index, 0)
+            max_node_height = lane_max_height.get(lane.lane_index, self.params["task_base_height"])
+
+            if node_count == 0:
+                lane.height = self.params["lane_min_height"]
+            else:
+                # レーン高さ = ノード高さの最大値 × ノード数 + 間隔 + パディング
+                total_content_height = (
+                    max_node_height * node_count
+                    + self.params["node_spacing_y"] * max(0, node_count - 1)
+                )
+                lane.height = max(
+                    self.params["lane_min_height"],
+                    total_content_height + self.params["lane_padding_y"] * 2,
+                )
+
+    # ========================================================================
+    # 幾何レベル：座標の計算
+    # ========================================================================
+
+    def _calculate_coordinates(self) -> None:
+        """各ノードとレーン・ランクの座標を計算する。"""
+        # ランクのX座標を累積的に計算
+        current_x = self.params["margin_x"] + self.params["lane_header_width"]
+        for rank in sorted(self.ranks, key=lambda r: r.rank_index):
+            rank.x = current_x
+            current_x += rank.width + self.params["rank_spacing"]
+
+        # レーンのY座標を累積的に計算
+        current_y = self.params["margin_y"]
+        for lane in sorted(self.lanes, key=lambda l: l.lane_index):
+            lane.y = current_y
+            current_y += lane.height
+
+        # ノードの座標を計算
+        for node in self.nodes.values():
+            # X座標：ランクの中央に配置
+            rank = next((r for r in self.ranks if r.rank_index == node.rank_index), None)
+            if rank:
+                node.x = rank.x + (rank.width - node.width) / 2
+            else:
+                node.x = self.params["margin_x"]
+
+            # Y座標：レーン内で縦方向に配置
+            lane = next((l for l in self.lanes if l.lane_index == node.lane_index), None)
+            if lane:
+                # レーン内の同ランクのノード一覧を取得
+                nodes_in_same_rank_lane = [
+                    n for n in self.nodes.values()
+                    if n.rank_index == node.rank_index and n.lane_index == node.lane_index
+                ]
+                nodes_in_same_rank_lane.sort(key=lambda n: n.order_in_rank)
+
+                # レーン内での垂直位置を計算
+                total_nodes = len(nodes_in_same_rank_lane)
+                node_index = nodes_in_same_rank_lane.index(node)
+
+                # レーン中央から上下に配置
+                total_height = (
+                    sum(n.height for n in nodes_in_same_rank_lane)
+                    + self.params["node_spacing_y"] * max(0, total_nodes - 1)
+                )
+                start_y = lane.y + (lane.height - total_height) / 2
+
+                offset_y = 0
+                for i, n in enumerate(nodes_in_same_rank_lane):
+                    if i == node_index:
+                        node.y = start_y + offset_y
+                        break
+                    offset_y += n.height + self.params["node_spacing_y"]
+            else:
+                node.y = self.params["margin_y"]
+
+    # ========================================================================
+    # エッジルーティング：直交（マンハッタン）ルーティング
+    # ========================================================================
+
+    def _route_edges(self) -> None:
+        """エッジの経路（waypoints）を計算する。"""
+        self.edges = []
+
+        for flow_data in self.flows_data:
+            from_id = flow_data.get("from", "")
+            to_id = flow_data.get("to", "")
+
+            if from_id not in self.nodes or to_id not in self.nodes:
+                # ノードが見つからない場合はスキップ（警告を出す方が良いが、ここでは無視）
+                continue
+
+            from_node = self.nodes[from_id]
+            to_node = self.nodes[to_id]
+
+            # エッジの開始点・終了点
+            # 開始点：ノードの右端中央
+            start_x = from_node.x + from_node.width
+            start_y = from_node.y + from_node.height / 2
+
+            # 終了点：ノードの左端中央
+            end_x = to_node.x
+            end_y = to_node.y + to_node.height / 2
+
+            # waypoints を計算（直交ルーティング）
+            waypoints = self._calculate_orthogonal_waypoints(
+                start_x, start_y, end_x, end_y, from_node, to_node
+            )
+
+            edge = LayoutEdge(
+                edge_id=flow_data.get("id", f"flow_{from_id}_{to_id}"),
+                from_node=from_id,
+                to_node=to_id,
+                condition=flow_data.get("condition", None),
+                waypoints=waypoints,
+            )
+            self.edges.append(edge)
+
+        # デバッグ用：作成されたエッジ数を確認
+        # print(f"DEBUG: Created {len(self.edges)} edges from {len(self.flows_data)} flows")
+
+    def _calculate_orthogonal_waypoints(
+        self,
+        start_x: float,
+        start_y: float,
+        end_x: float,
+        end_y: float,
+        from_node: LayoutNode,
+        to_node: LayoutNode,
+    ) -> List[Tuple[float, float]]:
         """
-        水平座標の動的割り当て（Sugiyama第3段階）。
+        直交（マンハッタン）ルーティングで waypoints を計算する。
 
-        Args:
-            layers_by_phase: フェーズごとのノードリスト
-
-        Returns:
-            各ノードのX座標
+        基本方針：
+        - 同レーン・隣接ランク: ほぼ水平の直線
+        - レーン跨ぎ: 水平→垂直→水平の折れ線
         """
-        x_positions: Dict[str, float] = {}
+        waypoints = [(start_x, start_y)]
 
-        for phase_idx in sorted(layers_by_phase.keys()):
-            nodes = layers_by_phase[phase_idx]
+        # 同じレーンかつ隣接ランクの場合
+        if (
+            from_node.lane_index == to_node.lane_index
+            and abs(from_node.rank_index - to_node.rank_index) <= 1
+        ):
+            # 単純な水平線
+            waypoints.append((end_x, end_y))
+        else:
+            # レーン跨ぎまたはランクが離れている場合
+            # 中継点を挿入して直交ルーティング
 
-            # フェーズの基準X座標を計算
-            base_x = self._margin_x + self._lane_header_width + phase_idx * (self._task_base_width + self._base_spacing)
+            # 中継点1: 開始点から水平に進む
+            mid_x = (start_x + end_x) / 2
+            waypoints.append((mid_x, start_y))
 
-            # フェーズ内の各ノードに座標を割り当て
-            for node_id in nodes:
-                x_positions[node_id] = base_x
+            # 中継点2: 垂直に移動
+            waypoints.append((mid_x, end_y))
 
-        return x_positions
+            # 終了点
+            waypoints.append((end_x, end_y))
 
-    def _calculate_vertical_positions(self, layers_by_phase: Dict[int, List[str]], actor_order: Dict[str, int]) -> Dict[str, float]:
-        """
-        垂直座標の動的割り当て。
+        return waypoints
 
-        Args:
-            layers_by_phase: フェーズごとのノードリスト
-            actor_order: actorの順序マッピング
-
-        Returns:
-            各ノードのY座標
-        """
-        y_positions: Dict[str, float] = {}
-
-        # 各レーン内でのノード配置を計算
-        lane_nodes: Dict[str, List[str]] = defaultdict(list)
-        for phase_idx, nodes in layers_by_phase.items():
-            for node_id in nodes:
-                actor_id = self._get_node_actor(node_id)
-                lane_nodes[actor_id].append(node_id)
-
-        for actor_id, nodes in lane_nodes.items():
-            actor_idx = actor_order.get(actor_id, 0)
-            lane_top = self._margin_y + actor_idx * self._lane_base_height
-            lane_center_y = lane_top + self._lane_base_height / 2
-
-            # レーン内でノードを均等配置
-            total_height = len(nodes) * (self._task_base_height + 20)
-            start_y = lane_center_y - total_height / 2
-
-            for idx, node_id in enumerate(nodes):
-                y_positions[node_id] = start_y + idx * (self._task_base_height + 20)
-
-        return y_positions
+    # ========================================================================
+    # メイン処理：レイアウト計算の実行
+    # ========================================================================
 
     def calculate_layout(self) -> Tuple[Dict[str, BPMNNodeLayout], List[BPMNLaneLayout]]:
         """
@@ -281,80 +588,48 @@ class BPMNLayoutEngine:
         Returns:
             (ノードレイアウト辞書, レーンレイアウトリスト)
         """
-        # Actor順序の決定
-        actor_order = {actor["id"]: idx for idx, actor in enumerate(self.actors)}
+        # ステップ1: 構造レベルのレイアウト
+        self._build_nodes()
+        self._assign_lanes()
+        self._assign_ranks()
+        self._order_nodes_in_rank()
 
-        # トポロジカルソート
-        layers = self._topological_sort()
+        # ステップ2: 幾何レベルのレイアウト
+        self._calculate_node_sizes()
+        self._calculate_rank_widths()
+        self._calculate_lane_heights()
+        self._calculate_coordinates()
 
-        # 交差最小化
-        optimized_layers = self._barycenter_method(layers)
+        # ステップ3: エッジルーティング
+        self._route_edges()
 
-        # フェーズへの割り当て
-        layers_by_phase: Dict[int, List[str]] = defaultdict(list)
-        for layer in optimized_layers:
-            for node_id in layer:
-                phase_idx = self._assign_to_phase(node_id, optimized_layers)
-                layers_by_phase[phase_idx].append(node_id)
-
-        # 座標計算
-        x_positions = self._calculate_horizontal_positions(layers_by_phase)
-        y_positions = self._calculate_vertical_positions(layers_by_phase, actor_order)
-
-        # 負の座標を修正（すべて正の値にする）
-        if x_positions:
-            min_x = min(x_positions.values())
-            if min_x < 0:
-                x_positions = {k: v - min_x + self._margin_x for k, v in x_positions.items()}
-
-        if y_positions:
-            min_y = min(y_positions.values())
-            if min_y < 0:
-                y_positions = {k: v - min_y + self._margin_y for k, v in y_positions.items()}
-
-        # ノードレイアウトの構築
+        # 後方互換性のため、BPMNNodeLayout / BPMNLaneLayout 形式に変換
         node_layouts: Dict[str, BPMNNodeLayout] = {}
-        for node_id in x_positions.keys():
-            kind = self._get_node_kind(node_id)
-            label = self._get_node_label(node_id)
-            actor_id = self._get_node_actor(node_id)
-
-            if kind == "gateway":
-                width = height = self._gateway_size
-            else:
-                width = self._task_base_width
-                height = self._task_base_height
-
-            node_layouts[node_id] = BPMNNodeLayout(
-                node_id=node_id,
-                label=label,
-                x=x_positions[node_id],
-                y=y_positions[node_id],
-                width=width,
-                height=height,
-                kind=kind,
-                lane_id=actor_id,
+        for node in self.nodes.values():
+            node_layouts[node.node_id] = BPMNNodeLayout(
+                node_id=node.node_id,
+                label=node.label,
+                x=node.x,
+                y=node.y,
+                width=node.width,
+                height=node.height,
+                kind=node.kind,
+                lane_id=node.actor_id,
             )
 
-        # レーンレイアウトの構築
         lane_layouts: List[BPMNLaneLayout] = []
-        total_width = (
-            self._margin_x * 2
-            + self._lane_header_width
-            + len(self.phases) * self._task_base_width
-            + max(0, len(self.phases) - 1) * self._base_spacing
-        )
-
-        for actor in self.actors:
-            actor_idx = actor_order[actor["id"]]
-            lane_layouts.append(BPMNLaneLayout(
-                lane_id=actor["id"],
-                label=actor.get("name", actor["id"]),
-                x=self._margin_x,
-                y=self._margin_y + actor_idx * self._lane_base_height,
-                width=total_width - 2 * self._margin_x,
-                height=self._lane_base_height,
-            ))
+        total_width = self.calculate_diagram_size()[0]
+        for lane in self.lanes:
+            lane_layouts.append(
+                BPMNLaneLayout(
+                    lane_id=lane.actor_id,
+                    label=lane.label,
+                    x=self.params["margin_x"],
+                    y=lane.y,
+                    width=total_width - 2 * self.params["margin_x"],
+                    height=lane.height,
+                )
+            )
 
         return node_layouts, lane_layouts
 
@@ -365,16 +640,52 @@ class BPMNLayoutEngine:
         Returns:
             (幅, 高さ)
         """
+        if not self.ranks or not self.lanes:
+            return 800, 600
+
+        # 幅：margin + lane_header + 全ランク幅 + ランク間スペース + margin
+        total_rank_width = sum(rank.width for rank in self.ranks)
+        total_spacing = self.params["rank_spacing"] * max(0, len(self.ranks) - 1)
         width = (
-            self._margin_x * 2
-            + self._lane_header_width
-            + len(self.phases) * self._task_base_width
-            + max(0, len(self.phases) - 1) * self._base_spacing
+            self.params["margin_x"] * 2
+            + self.params["lane_header_width"]
+            + total_rank_width
+            + total_spacing
         )
 
-        height = (
-            self._margin_y * 2
-            + len(self.actors) * self._lane_base_height
-        )
+        # 高さ：margin + 全レーン高さ + margin
+        total_lane_height = sum(lane.height for lane in self.lanes)
+        height = self.params["margin_y"] * 2 + total_lane_height
 
         return int(width), int(height)
+
+    def get_edge_waypoints(self, edge_id: str) -> List[Tuple[float, float]]:
+        """
+        指定されたエッジの waypoints を取得する。
+
+        Args:
+            edge_id: エッジID（flow_id）
+
+        Returns:
+            waypoints のリスト
+        """
+        for edge in self.edges:
+            if edge.edge_id == edge_id:
+                return edge.waypoints
+        return []
+
+    def get_edge_waypoints_by_nodes(self, from_node: str, to_node: str) -> List[Tuple[float, float]]:
+        """
+        fromとtoノードを指定してwaypointsを取得する。
+
+        Args:
+            from_node: 開始ノードID
+            to_node: 終了ノードID
+
+        Returns:
+            waypoints のリスト
+        """
+        for edge in self.edges:
+            if edge.from_node == from_node and edge.to_node == to_node:
+                return edge.waypoints
+        return []

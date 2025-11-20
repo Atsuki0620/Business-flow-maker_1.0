@@ -228,35 +228,47 @@ class BPMNConverter:
                 'height': str(layout.height),
             })
 
-        # エッジの追加
+        # エッジの追加（waypointsを利用）
         for flow in self.flows_data:
             flow_id = flow.get('id', f"Flow_{flow['from']}_to_{flow['to']}")
-            source_layout = self.node_layouts.get(flow['from'])
-            target_layout = self.node_layouts.get(flow['to'])
+            from_node = flow['from']
+            to_node = flow['to']
 
-            if source_layout and target_layout:
-                edge = SubElement(plane, 'bpmndi:BPMNEdge', attrib={
-                    'id': f"Edge_{flow_id}",
-                    'bpmnElement': flow_id,
-                })
+            edge = SubElement(plane, 'bpmndi:BPMNEdge', attrib={
+                'id': f"Edge_{flow_id}",
+                'bpmnElement': flow_id,
+            })
 
-                # 開始点（ソースの右端中央）
-                start_x = source_layout.x + source_layout.width
-                start_y = source_layout.y + source_layout.height / 2
+            # レイアウトエンジンから waypoints を取得（from/toノードで検索）
+            waypoints = self.layout_engine.get_edge_waypoints_by_nodes(from_node, to_node)
 
-                # 終了点（ターゲットの左端中央）
-                end_x = target_layout.x
-                end_y = target_layout.y + target_layout.height / 2
+            if waypoints:
+                # waypoints をそのまま使用
+                for wx, wy in waypoints:
+                    SubElement(edge, 'di:waypoint', attrib={
+                        'x': str(wx),
+                        'y': str(wy),
+                    })
+            else:
+                # フォールバック：レイアウト情報から2点の直線を生成
+                source_layout = self.node_layouts.get(from_node)
+                target_layout = self.node_layouts.get(to_node)
 
-                SubElement(edge, 'di:waypoint', attrib={
-                    'x': str(start_x),
-                    'y': str(start_y),
-                })
+                if source_layout and target_layout:
+                    start_x = source_layout.x + source_layout.width
+                    start_y = source_layout.y + source_layout.height / 2
+                    end_x = target_layout.x
+                    end_y = target_layout.y + target_layout.height / 2
 
-                SubElement(edge, 'di:waypoint', attrib={
-                    'x': str(end_x),
-                    'y': str(end_y),
-                })
+                    SubElement(edge, 'di:waypoint', attrib={
+                        'x': str(start_x),
+                        'y': str(start_y),
+                    })
+
+                    SubElement(edge, 'di:waypoint', attrib={
+                        'x': str(end_x),
+                        'y': str(end_y),
+                    })
 
     def _prettify_xml(self, elem: Element) -> str:
         """XML要素を整形された文字列に変換する。"""
@@ -268,16 +280,24 @@ class BPMNConverter:
 class BPMNSVGGenerator:
     """BPMN準拠のSVG画像を生成するクラス。"""
 
-    def __init__(self, flow: Dict[str, Any], node_layouts: Dict[str, BPMNNodeLayout], lane_layouts: List[BPMNLaneLayout]):
+    def __init__(
+        self,
+        flow: Dict[str, Any],
+        node_layouts: Dict[str, BPMNNodeLayout],
+        lane_layouts: List[BPMNLaneLayout],
+        layout_engine: Optional[Any] = None,
+    ):
         """
         Args:
             flow: JSON形式の業務フローデータ
             node_layouts: ノードレイアウト情報
             lane_layouts: レーンレイアウト情報
+            layout_engine: レイアウトエンジンのインスタンス（waypoints取得用）
         """
         self.flow = flow
         self.node_layouts = node_layouts
         self.lane_layouts = lane_layouts
+        self._layout_engine = layout_engine
         self.tasks = flow.get("tasks", [])
         self.gateways = flow.get("gateways", [])
         self.flows_data = flow.get("flows", [])
@@ -348,29 +368,43 @@ class BPMNSVGGenerator:
             }).text = lane.label
 
         # フロー（エッジ）の描画（ノードの下に描画するため先に）
+        # レイアウトエンジンの参照を取得（BPMNConverterから渡される想定）
+        layout_engine = getattr(self, '_layout_engine', None)
+
         for flow in self.flows_data:
-            source_layout = self.node_layouts.get(flow['from'])
-            target_layout = self.node_layouts.get(flow['to'])
+            from_node = flow['from']
+            to_node = flow['to']
 
-            if source_layout and target_layout:
-                # 開始点と終了点の計算
-                start_x = source_layout.x + source_layout.width
-                start_y = source_layout.y + source_layout.height / 2
-                end_x = target_layout.x
-                end_y = target_layout.y + target_layout.height / 2
+            # waypoints を取得（from/toノードで検索）
+            waypoints = []
+            if layout_engine:
+                waypoints = layout_engine.get_edge_waypoints_by_nodes(from_node, to_node)
 
-                SubElement(svg, 'line', attrib={
+            if not waypoints:
+                # フォールバック：2点の直線
+                source_layout = self.node_layouts.get(from_node)
+                target_layout = self.node_layouts.get(to_node)
+
+                if source_layout and target_layout:
+                    start_x = source_layout.x + source_layout.width
+                    start_y = source_layout.y + source_layout.height / 2
+                    end_x = target_layout.x
+                    end_y = target_layout.y + target_layout.height / 2
+                    waypoints = [(start_x, start_y), (end_x, end_y)]
+
+            if waypoints:
+                # waypoints を polyline で描画
+                points_str = ' '.join(f'{x},{y}' for x, y in waypoints)
+                SubElement(svg, 'polyline', attrib={
                     'class': 'flow',
-                    'x1': str(start_x),
-                    'y1': str(start_y),
-                    'x2': str(end_x),
-                    'y2': str(end_y),
+                    'points': points_str,
                 })
 
-                # 条件ラベルの描画
-                if flow.get('condition'):
-                    label_x = (start_x + end_x) / 2
-                    label_y = (start_y + end_y) / 2 - 5
+                # 条件ラベルの描画（中間点に配置）
+                if flow.get('condition') and len(waypoints) >= 2:
+                    mid_idx = len(waypoints) // 2
+                    label_x = waypoints[mid_idx][0]
+                    label_y = waypoints[mid_idx][1] - 5
                     SubElement(svg, 'text', attrib={
                         'class': 'flow-label',
                         'x': str(label_x),
@@ -594,7 +628,12 @@ def convert_json_to_bpmn(
 
     # SVG生成
     if svg_output is not None and isinstance(svg_output, Path):
-        svg_generator = BPMNSVGGenerator(flow, converter.node_layouts, converter.lane_layouts)
+        svg_generator = BPMNSVGGenerator(
+            flow,
+            converter.node_layouts,
+            converter.lane_layouts,
+            converter.layout_engine,
+        )
         svg_content = svg_generator.generate_svg()
 
         # SVGファイルの保存

@@ -38,50 +38,62 @@
   <bpmndi:BPMNDiagram id="BPMNDiagram_sample-large-01">
     <bpmndi:BPMNPlane id="BPMNPlane_sample-large-01" bpmnElement="Process_sample-large-01">
       <bpmndi:BPMNShape id="Shape_t1_rfc_submit" bpmnElement="t1_rfc_submit">
-        <dc:Bounds x="230" y="100.0" width="180" height="80"/>
+        <dc:Bounds x="230.0" y="85.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_t2_region_review" bpmnElement="t2_region_review">
-        <dc:Bounds x="490" y="300.0" width="180" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_g1_risk_level" bpmnElement="g1_risk_level">
-        <dc:Bounds x="750" y="450.0" width="60" height="60"/>
+        <dc:Bounds x="510.0" y="280.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_t3_global_sync" bpmnElement="t3_global_sync">
-        <dc:Bounds x="750" y="550.0" width="180" height="80"/>
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Shape_g2_emergency" bpmnElement="g2_emergency">
-        <dc:Bounds x="1010" y="650.0" width="60" height="60"/>
+        <dc:Bounds x="1110.0" y="475.0" width="180" height="80"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Shape_t4_execute" bpmnElement="t4_execute">
-        <dc:Bounds x="1010" y="750.0" width="180" height="80"/>
+        <dc:Bounds x="1390.0" y="670.0" width="180" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_g1_risk_level" bpmnElement="g1_risk_level">
+        <dc:Bounds x="790.0" y="290.0" width="60" height="60"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_g2_emergency" bpmnElement="g2_emergency">
+        <dc:Bounds x="950.0" y="680.0" width="60" height="60"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Edge_f1" bpmnElement="f1">
-        <di:waypoint x="410" y="140.0"/>
-        <di:waypoint x="490" y="340.0"/>
+        <di:waypoint x="410.0" y="125.0"/>
+        <di:waypoint x="460.0" y="125.0"/>
+        <di:waypoint x="460.0" y="320.0"/>
+        <di:waypoint x="510.0" y="320.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_f2" bpmnElement="f2">
-        <di:waypoint x="670" y="340.0"/>
-        <di:waypoint x="750" y="480.0"/>
+        <di:waypoint x="690.0" y="320.0"/>
+        <di:waypoint x="790.0" y="320.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_f3" bpmnElement="f3">
-        <di:waypoint x="810" y="480.0"/>
-        <di:waypoint x="750" y="590.0"/>
+        <di:waypoint x="850.0" y="320.0"/>
+        <di:waypoint x="980.0" y="320.0"/>
+        <di:waypoint x="980.0" y="515.0"/>
+        <di:waypoint x="1110.0" y="515.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_f4" bpmnElement="f4">
-        <di:waypoint x="810" y="480.0"/>
-        <di:waypoint x="1010" y="680.0"/>
+        <di:waypoint x="850.0" y="320.0"/>
+        <di:waypoint x="900.0" y="320.0"/>
+        <di:waypoint x="900.0" y="710.0"/>
+        <di:waypoint x="950.0" y="710.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_f5" bpmnElement="f5">
-        <di:waypoint x="1070" y="680.0"/>
-        <di:waypoint x="1010" y="790.0"/>
+        <di:waypoint x="1010.0" y="710.0"/>
+        <di:waypoint x="1200.0" y="710.0"/>
+        <di:waypoint x="1200.0" y="710.0"/>
+        <di:waypoint x="1390.0" y="710.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_f6" bpmnElement="f6">
-        <di:waypoint x="930" y="590.0"/>
-        <di:waypoint x="1010" y="790.0"/>
+        <di:waypoint x="1290.0" y="515.0"/>
+        <di:waypoint x="1340.0" y="515.0"/>
+        <di:waypoint x="1340.0" y="710.0"/>
+        <di:waypoint x="1390.0" y="710.0"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Edge_f7" bpmnElement="f7">
-        <di:waypoint x="1070" y="680.0"/>
-        <di:waypoint x="750" y="590.0"/>
+        <di:waypoint x="1010.0" y="710.0"/>
+        <di:waypoint x="1060.0" y="710.0"/>
+        <di:waypoint x="1060.0" y="515.0"/>
+        <di:waypoint x="1110.0" y="515.0"/>
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

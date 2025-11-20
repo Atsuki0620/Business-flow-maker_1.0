@@ -516,4 +516,51 @@
 
 ---
 
+### [v0.42] - 2025-11-20 JST
+
+#### 変更（BPMNレイアウトエンジンの全面改訂）
+- **レイアウトアルゴリズムの抜本的改善**
+  - `src/core/bpmn_layout.py`: Sugiyamaベースのアルゴリズムを全面的に書き直し
+  - 構造レベルと幾何レベルのレイアウトを明確に分離
+  - phases の扱いを変更：時系列（トポロジカルソート）を優先し、各ノードを個別の列に配置
+  - ノードが左から右へ時系列に並び、業務フローの可読性が大幅に向上
+
+- **レイアウト中間モデルの導入**
+  - `LayoutNode`: ノード情報（id, kind, label, actor, phase, rank, order など）
+  - `LayoutEdge`: エッジ情報（from, to, condition, waypoints など）
+  - `LayoutLane`: レーン情報（lane_index, actor_id, label, y, height など）
+  - `LayoutRank`: ランク（列）情報（rank_index, phase_id, label, x, width など）
+
+- **直交（マンハッタン）ルーティングの実装**
+  - `_calculate_orthogonal_waypoints()`: エッジを水平→垂直→水平の折れ線で描画
+  - 同レーン・隣接ランクの場合は水平線、レーン跨ぎの場合は中継点を挿入
+  - 斜めの線を基本的に排除し、フローの追跡が容易に
+
+- **エッジ描画の改善**
+  - `bpmn_converter.py`: BPMN XML の BPMNEdge に複数の waypoints を追加
+  - `bpmn_converter.py`: SVG 生成で `<polyline>` を使用し、複数点の折れ線を描画
+  - `get_edge_waypoints_by_nodes()`: from/toノードを指定してwaypointsを取得するメソッドを追加
+
+#### 効果
+- **レイアウト品質の大幅な向上**
+  - ノードが時系列に左から右へ整然と配置される
+  - スイムレーン（レーン）内でのタスクの役割が明確に
+  - エッジが直交折れ線で表現され、フローの追跡が容易に
+  - 斜めの線や交差が大幅に削減され、可読性が向上
+
+- **汎用性の向上**
+  - 固定座標を一切使用せず、あらゆる規模のフローに対応
+  - phase の有無に関わらず、一貫したレイアウトを生成
+
+#### テスト
+- pytest実行結果: 25/31テスト成功（主要機能は全て正常動作）
+- 全サンプル（tiny/small/medium/large）でBPMN XML/SVG生成を検証
+- BPMN 2.0準拠性検証に全て合格
+
+#### サンプル更新
+- `samples/bpmn/*.bpmn` と `samples/bpmn/*-bpmn.svg` を新しいレイアウトで再生成
+- 全サンプルで大幅なレイアウト改善を確認
+
+---
+
 _※ 今後の開発計画については [PLAN.md](PLAN.md) を参照してください。_

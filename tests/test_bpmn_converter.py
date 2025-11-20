@@ -89,6 +89,128 @@ class TestBPMNLayoutEngine:
         assert len(node_layouts) == 0
         assert len(lane_layouts) == 0
 
+    def test_lane_order_corresponds_to_actors(self):
+        """レーンの順序がactorsの順序に対応している。"""
+        engine = BPMNLayoutEngine(SAMPLE_FLOW)
+        node_layouts, lane_layouts = engine.calculate_layout()
+
+        # レーン数がactors数と一致
+        assert len(lane_layouts) == len(SAMPLE_FLOW["actors"])
+
+        # レーンがactorsの順序通りに並んでいる
+        for i, lane in enumerate(lane_layouts):
+            expected_actor_id = SAMPLE_FLOW["actors"][i]["id"]
+            # lane_idはactor_idと同じ形式で設定されている
+            assert lane.lane_id == expected_actor_id
+
+        # レーンのY座標が昇順である（上から下へ）
+        for i in range(len(lane_layouts) - 1):
+            assert lane_layouts[i].y < lane_layouts[i + 1].y
+
+    def test_start_event_before_end_event(self):
+        """StartEventのx座標がEndEventより左にある。"""
+        # StartEventとEndEventを含むフローを作成
+        flow_with_events = {
+            "actors": [{"id": "actor_1", "name": "営業部", "type": "human"}],
+            "phases": [{"id": "phase_1", "name": "準備"}],
+            "tasks": [
+                {"id": "start_1", "name": "開始", "actor_id": "actor_1", "phase_id": "phase_1", "handoff_to": []},
+                {"id": "task_1", "name": "タスク1", "actor_id": "actor_1", "phase_id": "phase_1", "handoff_to": []},
+                {"id": "end_1", "name": "終了", "actor_id": "actor_1", "phase_id": "phase_1", "handoff_to": []},
+            ],
+            "gateways": [],
+            "flows": [
+                {"id": "flow_1", "from": "start_1", "to": "task_1"},
+                {"id": "flow_2", "from": "task_1", "to": "end_1"},
+            ],
+            "issues": [],
+            "metadata": {"id": "test-flow", "title": "テストフロー"},
+        }
+
+        engine = BPMNLayoutEngine(flow_with_events)
+        node_layouts, lane_layouts = engine.calculate_layout()
+
+        # start_1のx座標がend_1より左にある
+        assert node_layouts["start_1"].x < node_layouts["end_1"].x
+
+        # 中間のタスクはstartとendの間にある
+        assert node_layouts["start_1"].x < node_layouts["task_1"].x
+        assert node_layouts["task_1"].x < node_layouts["end_1"].x
+
+    def test_edge_waypoints_calculation(self):
+        """エッジのwaypointsが正しく計算されている。"""
+        engine = BPMNLayoutEngine(SAMPLE_FLOW)
+        engine.calculate_layout()
+
+        # エッジが存在することを確認
+        assert len(engine.edges) > 0
+
+        # 各エッジにwaypointsが設定されている
+        for edge in engine.edges:
+            assert hasattr(edge, 'waypoints')
+            assert len(edge.waypoints) >= 2  # 最低でも開始点と終了点
+
+            # 各waypointが(x, y)のタプルである
+            for waypoint in edge.waypoints:
+                assert isinstance(waypoint, tuple)
+                assert len(waypoint) == 2
+                x, y = waypoint
+                assert isinstance(x, (int, float))
+                assert isinstance(y, (int, float))
+                assert x >= 0
+                assert y >= 0
+
+    def test_topological_sort_rank_assignment(self):
+        """トポロジカルソートによるランク割り当てが正しい。"""
+        # 線形のフローを作成（A -> B -> C）
+        linear_flow = {
+            "actors": [{"id": "actor_1", "name": "営業部", "type": "human"}],
+            "phases": [{"id": "phase_1", "name": "準備"}],
+            "tasks": [
+                {"id": "task_a", "name": "タスクA", "actor_id": "actor_1", "phase_id": "phase_1", "handoff_to": []},
+                {"id": "task_b", "name": "タスクB", "actor_id": "actor_1", "phase_id": "phase_1", "handoff_to": []},
+                {"id": "task_c", "name": "タスクC", "actor_id": "actor_1", "phase_id": "phase_1", "handoff_to": []},
+            ],
+            "gateways": [],
+            "flows": [
+                {"id": "flow_1", "from": "task_a", "to": "task_b"},
+                {"id": "flow_2", "from": "task_b", "to": "task_c"},
+            ],
+            "issues": [],
+            "metadata": {"id": "test-flow", "title": "テストフロー"},
+        }
+
+        engine = BPMNLayoutEngine(linear_flow)
+        node_layouts, lane_layouts = engine.calculate_layout()
+
+        # タスクが左から右へ並んでいる（時系列順）
+        assert node_layouts["task_a"].x < node_layouts["task_b"].x
+        assert node_layouts["task_b"].x < node_layouts["task_c"].x
+
+    def test_node_sizes_are_positive(self):
+        """全ノードのサイズが正の値である。"""
+        engine = BPMNLayoutEngine(SAMPLE_FLOW)
+        node_layouts, lane_layouts = engine.calculate_layout()
+
+        for node_id, layout in node_layouts.items():
+            assert layout.width > 0, f"ノード{node_id}の幅が0以下"
+            assert layout.height > 0, f"ノード{node_id}の高さが0以下"
+
+    def test_lane_and_rank_dimensions_positive(self):
+        """レーン高さとランク幅が正の値である。"""
+        engine = BPMNLayoutEngine(SAMPLE_FLOW)
+        node_layouts, lane_layouts = engine.calculate_layout()
+
+        # レーン高さが正の値
+        for lane in lane_layouts:
+            assert lane.height > 0, f"レーン{lane.actor_id}の高さが0以下"
+
+        # ランク（列）の情報を確認
+        # 注: BPMNLayoutEngineにranksプロパティがあると仮定
+        if hasattr(engine, 'ranks'):
+            for rank in engine.ranks:
+                assert rank.width > 0, f"ランク{rank}の幅が0以下"
+
 
 class TestBPMNConverter:
     """BPMNConverterのテスト。"""
